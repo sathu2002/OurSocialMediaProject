@@ -12,7 +12,7 @@ const analyticsSchema = new mongoose.Schema({
   },
   platform: {
     type: String,
-    enum: ['Facebook', 'Instagram', 'Twitter', 'LinkedIn', 'Google', 'Other'],
+    enum: ['Facebook', 'Instagram', 'Twitter', 'LinkedIn', 'Google', 'Google Ads', 'TikTok', 'Email', 'Other'],
   },
   reach: {
     type: Number,
@@ -37,6 +37,12 @@ const analyticsSchema = new mongoose.Schema({
   reportMonth: {
     type: String,
     // format: 'YYYY-MM'
+  },
+  startDate: {
+    type: Date,
+  },
+  endDate: {
+    type: Date,
   },
   createdAt: {
     type: Date,

@@ -23,8 +23,11 @@ const validateEnvironment = () => {
 };
 
 // Middleware
-// Enable CORS for frontend running on http://localhost:5173
-app.use(cors({ origin: 'http://localhost:5173' }));
+// Enable CORS for frontend and mobile apps
+app.use(cors({ 
+  origin: ['http://localhost:5173', 'http://localhost:8081', 'http://192.168.103.203:8081', 'http://192.168.103.203:5000', '*'],
+  credentials: true 
+}));
 
 // JSON body parser with limit 10mb
 app.use(express.json({ limit: '10mb' }));

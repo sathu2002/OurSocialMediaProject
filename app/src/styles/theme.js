@@ -1,0 +1,159 @@
+// Theme colors - Blue, White, Dark Navy
+export const colors = {
+  // Primary colors
+  primary: '#1e40af',      // Blue 700
+  primaryLight: '#3b82f6', // Blue 500
+  primaryDark: '#1e3a8a',  // Blue 900
+  
+  // Navy colors
+  navy: '#0f172a',         // Slate 900 (Dark Navy)
+  navyLight: '#1e293b',    // Slate 800
+  navyDark: '#020617',     // Slate 950
+  
+  // Accent colors
+  accent: '#2563eb',       // Blue 600
+  accentLight: '#60a5fa',  // Blue 400
+  
+  // Neutral colors
+  white: '#ffffff',
+  gray50: '#f8fafc',
+  gray100: '#f1f5f9',
+  gray200: '#e2e8f0',
+  gray300: '#cbd5e1',
+  gray400: '#94a3b8',
+  gray500: '#64748b',
+  gray600: '#475569',
+  gray700: '#334155',
+  gray800: '#1e293b',
+  gray900: '#0f172a',
+  
+  // Semantic colors
+  success: '#22c55e',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  info: '#3b82f6',
+  
+  // Background colors
+  background: '#0a1628',
+  surface: '#1e293b',
+  card: '#334155',
+};
+
+// Typography
+export const typography = {
+  fontSizes: {
+    xs: 12,
+    sm: 14,
+    md: 16,
+    lg: 18,
+    xl: 20,
+    '2xl': 24,
+    '3xl': 30,
+    '4xl': 36,
+  },
+  fontWeights: {
+    normal: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+  },
+};
+
+// Spacing
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  '2xl': 48,
+  '3xl': 64,
+};
+
+// Border radius
+export const borderRadius = {
+  none: 0,
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
+  '2xl': 24,
+  full: 9999,
+};
+
+// Shadows
+export const shadows = {
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 1.0,
+    elevation: 1,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  lg: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.30,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+};
+
+// Common styles
+export const commonStyles = {
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
+    padding: spacing.md,
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.md,
+  },
+  title: {
+    fontSize: typography.fontSizes['2xl'],
+    fontWeight: typography.fontWeights.bold,
+    color: colors.white,
+    marginBottom: spacing.md,
+  },
+  subtitle: {
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.semibold,
+    color: colors.gray100,
+    marginBottom: spacing.sm,
+  },
+  text: {
+    fontSize: typography.fontSizes.md,
+    color: colors.gray200,
+  },
+  textMuted: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.gray400,
+  },
+};
+
+export default {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  shadows,
+  commonStyles,
+};

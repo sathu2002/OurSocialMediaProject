@@ -64,7 +64,16 @@ const AnalyticsDashboard = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/analytics', formData);
+      const payload = { ...formData };
+      // Backend requires reportMonth (YYYY-MM), so derive it from startDate or current date
+      if (payload.startDate) {
+        payload.reportMonth = payload.startDate.substring(0, 7);
+      } else {
+        const d = new Date();
+        payload.reportMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+
+      await api.post('/analytics', payload);
       setIsModalOpen(false);
       fetchData();
     } catch (err) {

@@ -72,7 +72,7 @@ const getMonthlyAnalytics = async (req, res) => {
 // @access  Private/Admin/Manager
 const createAnalytics = async (req, res) => {
   try {
-    const { clientId, campaignName, platform, reach, impressions, engagement, clicks, conversions, reportMonth } = req.body;
+    const { clientId, campaignName, platform, reach, impressions, engagement, clicks, conversions, reportMonth, startDate, endDate } = req.body;
 
     if (!clientId || !campaignName || !reportMonth) {
       return res.status(400).json({ message: 'Client, campaign name, and report month are required' });
@@ -87,7 +87,9 @@ const createAnalytics = async (req, res) => {
       engagement,
       clicks,
       conversions,
-      reportMonth
+      reportMonth,
+      startDate,
+      endDate
     });
 
     res.status(201).json(analytics);
