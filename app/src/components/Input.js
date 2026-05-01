@@ -26,26 +26,33 @@ const Input = ({
     setIsPasswordVisible(!isPasswordVisible);
   };
 
+  const containerStyle = [
+    styles.container,
+    style,
+  ];
+
+  const inputContainerStyle = [
+    styles.inputContainer,
+    isFocused && styles.inputContainerFocused,
+    error && styles.inputContainerError,
+    multiline && styles.inputContainerMultiline,
+    !editable && styles.inputContainerDisabled,
+  ];
+
+  const inputStyleCombined = [
+    styles.input,
+    multiline && styles.inputMultiline,
+    inputStyle,
+  ];
+
   return (
-    <View style={[styles.container, style]}>
+    <View style={containerStyle}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View
-        style={[
-          styles.inputContainer,
-          isFocused && styles.inputContainerFocused,
-          error && styles.inputContainerError,
-          multiline && styles.inputContainerMultiline,
-          !editable && styles.inputContainerDisabled,
-        ]}
-      >
+      <View style={inputContainerStyle}>
         <TextInput
-          style={[
-            styles.input,
-            multiline && styles.inputMultiline,
-            inputStyle,
-          ]}
+          style={inputStyleCombined}
           placeholder={placeholder}
-          placeholderTextColor={colors.gray400}
+          placeholderTextColor={colors.textSecondary}
           value={value}
           onChangeText={onChangeText}
           onFocus={() => setIsFocused(true)}
@@ -81,9 +88,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.medium,
-    color: colors.gray300,
-    marginBottom: spacing.xs,
+    fontWeight: typography.fontWeights.semibold,
+    color: colors.textWhite,
+    marginBottom: spacing.sm,
+    lineHeight: typography.lineHeight.tight,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -91,50 +99,59 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.gray700,
+    borderColor: colors.cardBorder,
     paddingHorizontal: spacing.md,
+    minHeight: 48,
   },
   inputContainerFocused: {
     borderColor: colors.primary,
+    borderWidth: 2,
   },
   inputContainerError: {
     borderColor: colors.error,
+    borderWidth: 2,
   },
   inputContainerMultiline: {
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
+    alignItems: 'flex-start',
   },
   inputContainerDisabled: {
-    backgroundColor: colors.gray800,
+    backgroundColor: colors.gray100,
     opacity: 0.6,
   },
   input: {
     flex: 1,
-    color: colors.white,
+    color: colors.textPrimary,
     fontSize: typography.fontSizes.md,
     paddingVertical: spacing.md,
+    lineHeight: typography.lineHeight.normal,
   },
   inputMultiline: {
     height: 'auto',
     textAlignVertical: 'top',
+    minHeight: 80,
   },
   visibilityToggle: {
     paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   visibilityText: {
     color: colors.primary,
     fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.medium,
+    fontWeight: typography.fontWeights.semibold,
   },
   errorText: {
     fontSize: typography.fontSizes.sm,
     color: colors.error,
     marginTop: spacing.xs,
+    lineHeight: typography.lineHeight.normal,
   },
   helperText: {
     fontSize: typography.fontSizes.sm,
-    color: colors.gray400,
+    color: colors.textSecondary,
     marginTop: spacing.xs,
+    lineHeight: typography.lineHeight.normal,
   },
 });
 

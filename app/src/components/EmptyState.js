@@ -36,20 +36,22 @@ const styles = StyleSheet.create({
     minHeight: 200,
   },
   iconContainer: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: typography.fontSizes.xl,
     fontWeight: typography.fontWeights.semibold,
-    color: colors.white,
+    color: colors.textWhite,
     marginBottom: spacing.sm,
     textAlign: 'center',
+    lineHeight: typography.lineHeight.tight,
   },
   message: {
     fontSize: typography.fontSizes.md,
-    color: colors.gray400,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
+    lineHeight: typography.lineHeight.normal,
   },
   button: {
     minWidth: 150,

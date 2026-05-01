@@ -22,12 +22,14 @@ const SplashScreen = ({ onFinish }) => {
       }),
     ]).start();
 
-    // Auto finish after 2.5 seconds
+    // Auto finish after 2 seconds for proper splash experience
     const timer = setTimeout(() => {
       onFinish && onFinish();
-    }, 2500);
+    }, 2000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, []);
 
   return (

@@ -7,11 +7,14 @@ import {
   RefreshControl,
   TouchableOpacity,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { feedbackApi } from '../../api';
 import { Card, Loading, EmptyState } from '../../components';
+import StatsCard from '../../components/StatsCard';
+import FeedbackCard from '../../components/FeedbackCard';
 import { colors, typography, spacing, commonStyles } from '../../styles/theme';
 
 const { width } = Dimensions.get('window');
@@ -35,7 +38,7 @@ const AIInsightsScreen = () => {
         response = await feedbackApi.getFeedback();
       }
 
-      setFeedback(response.data || []);
+      setFeedback(response || []);
     } catch (error) {
       console.log('Fetch feedback error:', error);
       setError(error.response?.data?.message || 'Failed to load feedback');
@@ -72,9 +75,14 @@ const AIInsightsScreen = () => {
     negative: stats.total > 0 ? ((stats.negative / stats.total) * 100).toFixed(1) : 0,
   };
 
+  // Calculate average rating
+  const averageRating = feedback.length > 0
+    ? (feedback.reduce((sum, f) => sum + (f.rating || 0), 0) / feedback.length).toFixed(1)
+    : 0;
+
   // Get recent feedback (last 5)
   const recentFeedback = [...feedback]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
     .slice(0, 5);
 
   // Filter feedback by selected sentiment
@@ -162,20 +170,23 @@ const AIInsightsScreen = () => {
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <ScrollView
-        style={commonStyles.content}
+        style={styles.container}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <Text style={commonStyles.title}>AI Insights</Text>
+        {/* Header */}
+        <Card style={styles.headerCard}>
+          <Text style={styles.headerTitle}>AI Insights</Text>
+          <Text style={styles.headerSubtitle}>
+            Analytics and sentiment analysis from feedback data
+          </Text>
+        </Card>
 
         {error && (
-          <EmptyState
-            title="Error"
-            message={error}
-            actionLabel="Retry"
-            onAction={loadData}
-          />
+          <Card style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+          </Card>
         )}
 
         {/* Summary Card */}
@@ -192,17 +203,41 @@ const AIInsightsScreen = () => {
           <Text style={styles.totalFeedback}>
             Total Feedback: <Text style={styles.totalCount}>{stats.total}</Text>
           </Text>
+          <Text style={styles.averageRating}>
+            Average Rating: <Text style={styles.ratingValue}>{averageRating} ⭐</Text>
+          </Text>
         </Card>
 
         {/* Statistics Cards */}
         <View style={styles.statsContainer}>
-          {renderStatCard('Positive', stats.positive, percentages.positive, colors.success, 'Positive')}
-          {renderStatCard('Neutral', stats.neutral, percentages.neutral, colors.warning, 'Neutral')}
-          {renderStatCard('Negative', stats.negative, percentages.negative, colors.error, 'Negative')}
+          <StatsCard
+            title="Positive"
+            value={stats.positive}
+            subtitle={`${percentages.positive}%`}
+            color={colors.success}
+            icon="😊"
+            onPress={() => setSelectedSentiment(selectedSentiment === 'positive' ? null : 'positive')}
+          />
+          <StatsCard
+            title="Neutral"
+            value={stats.neutral}
+            subtitle={`${percentages.neutral}%`}
+            color={colors.warning}
+            icon="😐"
+            onPress={() => setSelectedSentiment(selectedSentiment === 'neutral' ? null : 'neutral')}
+          />
+          <StatsCard
+            title="Negative"
+            value={stats.negative}
+            subtitle={`${percentages.negative}%`}
+            color={colors.error}
+            icon="😞"
+            onPress={() => setSelectedSentiment(selectedSentiment === 'negative' ? null : 'negative')}
+          />
         </View>
 
         {/* Recent Feedback Section */}
-        <View style={styles.section}>
+        <Card style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
               {selectedSentiment 
@@ -224,11 +259,21 @@ const AIInsightsScreen = () => {
                 : "No feedback available yet."}
             />
           ) : (
-            <View style={styles.feedbackList}>
-              {filteredFeedback.map(renderFeedbackItem)}
-            </View>
+            <FlatList
+              data={filteredFeedback}
+              renderItem={({ item }) => (
+                <FeedbackCard
+                  feedback={item}
+                  onPress={() => console.log('View feedback details')}
+                  showActions={false}
+                />
+              )}
+              keyExtractor={(item) => item._id}
+              scrollEnabled={false}
+              contentContainerStyle={styles.feedbackList}
+            />
           )}
-        </View>
+        </Card>
 
         {/* AI Analysis Notes */}
         <Card style={styles.analysisCard}>
@@ -245,6 +290,9 @@ const AIInsightsScreen = () => {
           <Text style={styles.analysisText}>
             • {percentages.neutral}% are neutral responses
           </Text>
+          <Text style={styles.analysisText}>
+            • Average rating: {averageRating} out of 5
+          </Text>
           <Text style={styles.analysisHint}>
             Tap on any stat card above to filter feedback by sentiment.
           </Text>
@@ -255,15 +303,54 @@ const AIInsightsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  summaryCard: {
+  container: {
+    flex: 1,
+    padding: spacing.md,
+    backgroundColor: colors.background,
+  },
+  headerCard: {
+    backgroundColor: colors.navy,
+    borderRadius: spacing.lg,
+    padding: spacing.lg,
     marginBottom: spacing.md,
-    backgroundColor: colors.navyLight,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+  },
+  headerTitle: {
+    fontSize: typography.fontSizes.xl,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.white,
+    marginBottom: spacing.xs,
+  },
+  headerSubtitle: {
+    fontSize: typography.fontSizes.md,
+    color: colors.gray300,
+  },
+  errorCard: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: colors.error,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    borderRadius: spacing.lg,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: typography.fontSizes.md,
+    textAlign: 'center',
+  },
+  summaryCard: {
+    backgroundColor: colors.navy,
+    borderRadius: spacing.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.navyLight,
   },
   summaryTitle: {
     fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold,
+    fontWeight: typography.fontWeights.semibold,
     color: colors.white,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   satisfactionRow: {
     flexDirection: 'row',
@@ -277,8 +364,8 @@ const styles = StyleSheet.create({
   },
   satisfactionBadge: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: spacing.xs,
+    borderRadius: spacing.sm,
   },
   satisfactionText: {
     fontSize: typography.fontSizes.sm,
@@ -287,45 +374,32 @@ const styles = StyleSheet.create({
   totalFeedback: {
     fontSize: typography.fontSizes.md,
     color: colors.gray300,
+    marginBottom: spacing.xs,
   },
   totalCount: {
     fontWeight: typography.fontWeights.bold,
     color: colors.white,
   },
+  averageRating: {
+    fontSize: typography.fontSizes.md,
+    color: colors.gray300,
+  },
+  ratingValue: {
+    fontWeight: typography.fontWeights.bold,
+    color: colors.warning,
+  },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginHorizontal: spacing.xs,
-    alignItems: 'center',
-  },
-  statCardActive: {
-    backgroundColor: colors.navyLight,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  statCount: {
-    fontSize: typography.fontSizes['3xl'],
-    fontWeight: typography.fontWeights.bold,
-  },
-  statLabel: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.gray400,
-    marginTop: spacing.xs,
-  },
-  statPercentage: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.semibold,
-    marginTop: spacing.xs,
-  },
-  section: {
-    marginBottom: spacing.lg,
+  sectionCard: {
+    backgroundColor: colors.navy,
+    borderRadius: spacing.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.navyLight,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -335,7 +409,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold,
+    fontWeight: typography.fontWeights.semibold,
     color: colors.white,
   },
   clearFilter: {
@@ -343,57 +417,21 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   feedbackList: {
-    gap: spacing.md,
-  },
-  feedbackItem: {
-    marginBottom: spacing.md,
-  },
-  feedbackHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  feedbackTitleSection: {
-    flex: 1,
-  },
-  campaignName: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.bold,
-    color: colors.white,
-    marginBottom: spacing.xs,
-  },
-  clientName: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.gray400,
-  },
-  sentimentBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  sentimentText: {
-    fontSize: typography.fontSizes.xs,
-    fontWeight: typography.fontWeights.semibold,
-  },
-  commentText: {
-    fontSize: typography.fontSizes.md,
-    color: colors.gray300,
-    marginBottom: spacing.xs,
-  },
-  dateText: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.gray500,
+    gap: spacing.sm,
   },
   analysisCard: {
-    backgroundColor: colors.navyLight,
-    marginBottom: spacing.xl,
+    backgroundColor: colors.navy,
+    borderRadius: spacing.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.navyLight,
   },
   analysisTitle: {
     fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold,
+    fontWeight: typography.fontWeights.semibold,
     color: colors.primary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   analysisText: {
     fontSize: typography.fontSizes.md,
@@ -403,7 +441,7 @@ const styles = StyleSheet.create({
   },
   analysisHint: {
     fontSize: typography.fontSizes.sm,
-    color: colors.gray500,
+    color: colors.gray400,
     marginTop: spacing.md,
     fontStyle: 'italic',
   },

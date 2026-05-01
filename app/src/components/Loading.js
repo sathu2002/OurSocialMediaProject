@@ -3,17 +3,10 @@ import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { colors, typography, spacing } from '../styles/theme';
 
 const Loading = ({ message = 'Loading...', fullScreen = false }) => {
-  if (fullScreen) {
-    return (
-      <View style={styles.fullScreenContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        {message && <Text style={styles.message}>{message}</Text>}
-      </View>
-    );
-  }
+  const containerStyle = fullScreen ? styles.fullScreenContainer : styles.container;
 
   return (
-    <View style={styles.container}>
+    <View style={containerStyle}>
       <ActivityIndicator size="large" color={colors.primary} />
       {message && <Text style={styles.message}>{message}</Text>}
     </View>
@@ -35,7 +28,9 @@ const styles = StyleSheet.create({
   message: {
     marginTop: spacing.md,
     fontSize: typography.fontSizes.md,
-    color: colors.gray300,
+    color: colors.textWhite,
+    fontWeight: typography.fontWeights.medium,
+    lineHeight: typography.lineHeight.normal,
   },
 });
 

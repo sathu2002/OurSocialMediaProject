@@ -22,14 +22,32 @@ const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
 
   const validateForm = () => {
+    // Reset error
+    setError('');
+
+    // Email validation
     if (!email.trim()) {
-      setError('Please enter your email');
+      setError('Email is required');
       return false;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+
+    // Password validation
     if (!password) {
-      setError('Please enter your password');
+      setError('Password is required');
       return false;
     }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+
     return true;
   };
 
@@ -39,12 +57,17 @@ const LoginScreen = ({ navigation }) => {
     setLoading(true);
     setError('');
 
-    const result = await login(email, password);
+    try {
+      const result = await login(email.trim(), password);
 
-    setLoading(false);
-
-    if (!result.success) {
-      setError(result.error);
+      if (!result.success) {
+        setError(result.error);
+      }
+      // Navigation will be handled automatically by AuthContext state change
+    } catch (error) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 

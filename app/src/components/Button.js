@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { colors, typography, borderRadius } from '../styles/theme';
+import { colors, typography, borderRadius, shadows, spacing } from '../styles/theme';
 
 const Button = ({ 
   title, 
@@ -48,7 +48,7 @@ const Button = ({
       case 'danger':
         return colors.white;
       case 'secondary':
-        return colors.navy;
+        return colors.textPrimary;
       case 'outline':
       case 'ghost':
         return colors.primary;
@@ -57,23 +57,31 @@ const Button = ({
     }
   };
 
+  const buttonStyle = [
+    styles.base,
+    getVariantStyles(),
+    getSizeStyles(),
+    (disabled || loading) && styles.disabled,
+    style,
+  ];
+
+  const textStyleCombined = [
+    styles.text,
+    { color: getTextColor() },
+    textStyle,
+  ];
+
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      style={[
-        styles.base,
-        getVariantStyles(),
-        getSizeStyles(),
-        (disabled || loading) && styles.disabled,
-        style,
-      ]}
+      style={buttonStyle}
       activeOpacity={0.8}
     >
       {loading ? (
         <ActivityIndicator size="small" color={getTextColor()} />
       ) : (
-        <Text style={[styles.text, { color: getTextColor() }, textStyle]}>
+        <Text style={textStyleCombined}>
           {title}
         </Text>
       )}
@@ -87,16 +95,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    minHeight: 48,
   },
   text: {
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.semibold,
+    lineHeight: typography.lineHeight.tight,
   },
   primary: {
     backgroundColor: colors.primary,
+    ...shadows.md,
   },
   secondary: {
-    backgroundColor: colors.gray200,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
   },
   outline: {
     backgroundColor: 'transparent',
@@ -105,21 +118,25 @@ const styles = StyleSheet.create({
   },
   danger: {
     backgroundColor: colors.error,
+    ...shadows.md,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   small: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    minHeight: 36,
   },
   medium: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    minHeight: 48,
   },
   large: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    minHeight: 56,
   },
   disabled: {
     opacity: 0.5,

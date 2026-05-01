@@ -14,15 +14,17 @@ const Card = ({
 }) => {
   const Container = onPress ? TouchableOpacity : View;
 
+  const cardStyle = [
+    styles.card, 
+    padding && styles.cardPadding,
+    style,
+  ];
+
   return (
     <Container 
       onPress={onPress} 
       activeOpacity={0.8}
-      style={[
-        styles.card, 
-        padding && styles.cardPadding,
-        style
-      ]}
+      style={cardStyle}
     >
       {(title || subtitle || headerRight) && (
         <View style={styles.header}>
@@ -53,32 +55,36 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
     ...shadows.md,
   },
   cardPadding: {
-    padding: spacing.md,
+    padding: spacing.lg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   headerLeft: {
     flex: 1,
   },
   headerRight: {
-    marginLeft: spacing.sm,
+    marginLeft: spacing.md,
   },
   title: {
     fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold,
-    color: colors.white,
+    fontWeight: typography.fontWeights.semibold,
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
+    lineHeight: typography.lineHeight.tight,
   },
   subtitle: {
     fontSize: typography.fontSizes.sm,
-    color: colors.gray400,
+    color: colors.textSecondary,
+    lineHeight: typography.lineHeight.normal,
   },
   content: {
     // Content styles
@@ -87,7 +93,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.gray700,
+    borderTopColor: colors.cardBorder,
   },
 });
 

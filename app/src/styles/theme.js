@@ -1,20 +1,17 @@
-// Theme colors - Blue, White, Dark Navy
+// Theme colors - Blue, White, Dark Navy (Web-inspired)
 export const colors = {
   // Primary colors
-  primary: '#1e40af',      // Blue 700
+  primary: '#2563eb',      // Blue 600 (Web primary)
   primaryLight: '#3b82f6', // Blue 500
-  primaryDark: '#1e3a8a',  // Blue 900
+  primaryDark: '#1e40af',  // Blue 700
   
-  // Navy colors
-  navy: '#0f172a',         // Slate 900 (Dark Navy)
-  navyLight: '#1e293b',    // Slate 800
-  navyDark: '#020617',     // Slate 950
+  // Navy colors (Dark theme)
+  navy: '#0f172a',         // Slate 900 (Dark Navy background)
+  navyLight: '#1e293b',    // Slate 800 (Lighter navy)
+  navyDark: '#020617',     // Slate 950 (Darkest navy)
+  navyMedium: '#1e293b',   // Medium navy for headers
   
-  // Accent colors
-  accent: '#2563eb',       // Blue 600
-  accentLight: '#60a5fa',  // Blue 400
-  
-  // Neutral colors
+  // White and grays
   white: '#ffffff',
   gray50: '#f8fafc',
   gray100: '#f1f5f9',
@@ -34,12 +31,18 @@ export const colors = {
   info: '#3b82f6',
   
   // Background colors
-  background: '#0a1628',
-  surface: '#1e293b',
-  card: '#334155',
+  background: '#0f172a',  // Dark navy background
+  surface: '#1e293b',     // Surface for cards
+  card: '#ffffff',        // White cards (Web style)
+  cardBorder: '#e2e8f0',  // Light border for white cards
+  
+  // Text colors
+  textPrimary: '#1e293b', // Dark text on white cards
+  textSecondary: '#64748b', // Secondary text
+  textWhite: '#ffffff',   // White text on dark backgrounds
 };
 
-// Typography
+// Typography (Mobile-optimized)
 export const typography = {
   fontSizes: {
     xs: 12,
@@ -50,16 +53,23 @@ export const typography = {
     '2xl': 24,
     '3xl': 30,
     '4xl': 36,
+    '5xl': 42,
   },
   fontWeights: {
     normal: '400',
     medium: '500',
     semibold: '600',
     bold: '700',
+    extrabold: '800',
+  },
+  lineHeight: {
+    tight: 1.2,
+    normal: 1.4,
+    relaxed: 1.6,
   },
 };
 
-// Spacing
+// Spacing (Mobile-optimized)
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -68,6 +78,7 @@ export const spacing = {
   xl: 32,
   '2xl': 48,
   '3xl': 64,
+  '4xl': 80,
 };
 
 // Border radius
@@ -106,7 +117,7 @@ export const shadows = {
   },
 };
 
-// Common styles
+// Common styles (Web-inspired)
 export const commonStyles = {
   container: {
     flex: 1,
@@ -123,29 +134,55 @@ export const commonStyles = {
   card: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    padding: spacing.lg,
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
     ...shadows.md,
+  },
+  headerCard: {
+    backgroundColor: colors.navy,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    ...shadows.lg,
   },
   title: {
     fontSize: typography.fontSizes['2xl'],
     fontWeight: typography.fontWeights.bold,
-    color: colors.white,
-    marginBottom: spacing.md,
+    color: colors.textWhite,
+    marginBottom: spacing.sm,
+    lineHeight: typography.lineHeight.tight,
   },
   subtitle: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.semibold,
-    color: colors.gray100,
-    marginBottom: spacing.sm,
+    fontSize: typography.fontSizes.md,
+    fontWeight: typography.fontWeights.medium,
+    color: colors.gray300,
+    marginBottom: spacing.md,
+    lineHeight: typography.lineHeight.normal,
   },
   text: {
     fontSize: typography.fontSizes.md,
-    color: colors.gray200,
+    color: colors.textPrimary,
+    lineHeight: typography.lineHeight.normal,
+  },
+  textWhite: {
+    fontSize: typography.fontSizes.md,
+    color: colors.textWhite,
+    lineHeight: typography.lineHeight.normal,
   },
   textMuted: {
     fontSize: typography.fontSizes.sm,
-    color: colors.gray400,
+    color: colors.textSecondary,
+    lineHeight: typography.lineHeight.normal,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.semibold,
+    color: colors.textWhite,
+    marginBottom: spacing.md,
   },
 };
 

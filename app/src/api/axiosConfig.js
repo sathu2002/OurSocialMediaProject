@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Base URL - Load from .env or use default
 // For physical device: Replace with your computer's IP
-const API_URL = process.env.API_URL || 'http://192.168.103.203:5000/api';
+const API_URL = process.env.API_URL || 'http://localhost:5000/api';
 
 // Create axios instance
 const apiClient = axios.create({
@@ -54,13 +54,13 @@ apiClient.interceptors.response.use(
     // Global error handling
     if (error.response) {
       // Server responded with error
-      console.log('API Error:', error.response.data);
+      console.log('API Error:', error.response.data?.message || error.response.data);
     } else if (error.request) {
       // No response received
-      console.log('Network Error:', error.request);
+      console.log('Network Error - No response from server');
     } else {
       // Request setup error
-      console.log('Error:', error.message);
+      console.log('Request Error:', error.message);
     }
 
     return Promise.reject(error);

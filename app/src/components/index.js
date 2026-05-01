@@ -4,3 +4,7 @@ export { default as Card } from './Card';
 export { default as Loading } from './Loading';
 export { default as ErrorMessage } from './ErrorMessage';
 export { default as EmptyState } from './EmptyState';
+export { default as FeedbackCard } from './FeedbackCard';
+export { default as FilterTabs } from './FilterTabs';
+export { default as StatsCard } from './StatsCard';
+export { default as SimpleChart } from './SimpleChart';

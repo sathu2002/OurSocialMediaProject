@@ -15,13 +15,27 @@ const ProfileScreen = () => {
   const { user, logout, hasRole } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', onPress: () => logout(), style: 'destructive' },
+        { 
+          text: 'Logout', 
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await logout();
+              // Navigation will be handled automatically by AuthContext state change
+            } catch (error) {
+              console.log('Logout error:', error);
+            } finally {
+              setLoading(false);
+            }
+          }, 
+          style: 'destructive' 
+        },
       ]
     );
   };

@@ -24,27 +24,49 @@ const RegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
 
   const validateForm = () => {
+    // Reset error
+    setError('');
+
+    // Name validation
     if (!name.trim()) {
-      setError('Please enter your name');
+      setError('Name is required');
       return false;
     }
+
+    if (name.trim().length < 2) {
+      setError('Name must be at least 2 characters long');
+      return false;
+    }
+
+    // Email validation
     if (!email.trim()) {
-      setError('Please enter your email');
+      setError('Email is required');
       return false;
     }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(email.trim())) {
       setError('Please enter a valid email address');
       return false;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+
+    // Password validation
+    if (!password) {
+      setError('Password is required');
       return false;
     }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+
+    // Confirm password validation
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return false;
     }
+
     return true;
   };
 
@@ -54,12 +76,17 @@ const RegisterScreen = ({ navigation }) => {
     setLoading(true);
     setError('');
 
-    const result = await register(name, email, password, 'Client');
+    try {
+      const result = await register(name.trim(), email.trim(), password, 'Client');
 
-    setLoading(false);
-
-    if (!result.success) {
-      setError(result.error);
+      if (!result.success) {
+        setError(result.error);
+      }
+      // Navigation will be handled automatically by AuthContext state change
+    } catch (error) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -6,14 +6,15 @@ import { useAuth } from '../context/AuthContext';
 import { colors, typography } from '../styles/theme';
 
 // Main Tab Screens
-import HomeScreen from '../screens/main/HomeScreen';
+import DashboardScreen from '../screens/main/DashboardScreen';
 import UsersScreen from '../screens/main/UsersScreen';
 import ClientsScreen from '../screens/main/ClientsScreen';
 import TasksScreen from '../screens/main/TasksScreen';
-import AnalyticsScreen from '../screens/main/AnalyticsScreen';
+import TaskCalendarScreen from '../screens/main/TaskCalendarScreen';
+import PackageManagementScreen from '../screens/main/PackageManagementScreen';
+import FeedbackHistoryScreen from '../screens/main/FeedbackHistoryScreen';
 import PaymentsScreen from '../screens/main/PaymentsScreen';
-import FeedbackScreen from '../screens/main/FeedbackScreen';
-import AIChatScreen from '../screens/main/AIChatScreen';
+import AnalyticsScreen from '../screens/main/AnalyticsScreen';
 import AIInsightsScreen from '../screens/main/AIInsightsScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 
@@ -83,13 +84,13 @@ const MainTabNavigator = () => {
         tabBarInactiveTintColor: colors.gray400,
       }}
     >
-      {/* Home - Available to all roles */}
+      {/* Dashboard - Available to all roles */}
       <Tab.Screen
-        name="Home"
-        component={HomeScreen}
+        name="Dashboard"
+        component={DashboardScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="H" focused={focused} />,
-          tabBarLabel: ({ focused }) => getTabBarLabel('Home', focused),
+          tabBarIcon: ({ focused }) => <TabIcon label="D" focused={focused} />,
+          tabBarLabel: ({ focused }) => getTabBarLabel('Dashboard', focused),
         }}
       />
 
@@ -117,6 +118,18 @@ const MainTabNavigator = () => {
         />
       )}
 
+      {/* Packages - Admin, Manager */}
+      {hasRole(['Admin', 'Manager']) && (
+        <Tab.Screen
+          name="Packages"
+          component={PackageManagementScreen}
+          options={{
+            tabBarIcon: ({ focused }) => <TabIcon label="P" focused={focused} />,
+            tabBarLabel: ({ focused }) => getTabBarLabel('Packages', focused),
+          }}
+        />
+      )}
+
       {/* Tasks - All roles */}
       <Tab.Screen
         name="Tasks"
@@ -124,6 +137,16 @@ const MainTabNavigator = () => {
         options={{
           tabBarIcon: ({ focused }) => <TabIcon label="T" focused={focused} />,
           tabBarLabel: ({ focused }) => getTabBarLabel('Tasks', focused),
+        }}
+      />
+
+      {/* Task Calendar - All roles */}
+      <Tab.Screen
+        name="TaskCalendar"
+        component={TaskCalendarScreen}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon label="C" focused={focused} />,
+          tabBarLabel: ({ focused }) => getTabBarLabel('Calendar', focused),
         }}
       />
 
@@ -145,7 +168,7 @@ const MainTabNavigator = () => {
           name="Payments"
           component={PaymentsScreen}
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="P" focused={focused} />,
+            tabBarIcon: ({ focused }) => <TabIcon label="$" focused={focused} />,
             tabBarLabel: ({ focused }) => getTabBarLabel('Payments', focused),
           }}
         />
@@ -155,7 +178,7 @@ const MainTabNavigator = () => {
       {hasRole(['Admin', 'Manager', 'Client']) && (
         <Tab.Screen
           name="Feedback"
-          component={FeedbackScreen}
+          component={FeedbackHistoryScreen}
           options={{
             tabBarIcon: ({ focused }) => <TabIcon label="F" focused={focused} />,
             tabBarLabel: ({ focused }) => getTabBarLabel('Feedback', focused),
@@ -170,7 +193,7 @@ const MainTabNavigator = () => {
           component={AIInsightsScreen}
           options={{
             tabBarIcon: ({ focused }) => <TabIcon label="AI" focused={focused} />,
-            tabBarLabel: ({ focused }) => getTabBarLabel('Insights', focused),
+            tabBarLabel: ({ focused }) => getTabBarLabel('AI', focused),
           }}
         />
       )}
