@@ -1,5 +1,7 @@
 import apiClient from './axiosConfig';
 
+const successResponse = (data) => ({ success: true, data });
+
 /**
  * Client Management API Service
  * Admin/Manager access for management, public registration available with proper error handling
@@ -62,13 +64,13 @@ export const clientApi = {
         throw new Error(`Invalid package. Must be one of: ${validPackages.join(', ')}`);
       }
 
-      const validStatuses = ['Active', 'Inactive', 'Pending'];
+      const validStatuses = ['active', 'inactive'];
       if (clientData.status && !validStatuses.includes(clientData.status)) {
         throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
       }
 
       const response = await apiClient.post('/clients', clientData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -128,14 +130,14 @@ export const clientApi = {
 
       // Validate status if provided
       if (clientData.status) {
-        const validStatuses = ['Active', 'Inactive', 'Pending'];
-        if (!validStatuses.includes(clientData.status)) {
-          throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
-        }
+      const validStatuses = ['active', 'inactive'];
+      if (!validStatuses.includes(clientData.status)) {
+        throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
       }
+    }
 
       const response = await apiClient.put(`/clients/${id}`, clientData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -156,7 +158,7 @@ export const clientApi = {
       }
       
       const response = await apiClient.delete(`/clients/${id}`);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 

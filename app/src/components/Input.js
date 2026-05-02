@@ -17,6 +17,7 @@ const Input = ({
   editable = true,
   style,
   inputStyle,
+  labelStyle,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -47,7 +48,7 @@ const Input = ({
 
   return (
     <View style={containerStyle}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, labelStyle]}>{label}</Text>}
       <View style={inputContainerStyle}>
         <TextInput
           style={inputStyleCombined}
@@ -91,7 +92,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.semibold,
     color: colors.textWhite,
     marginBottom: spacing.sm,
-    lineHeight: typography.lineHeight.tight,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -124,8 +124,8 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.textPrimary,
     fontSize: typography.fontSizes.md,
+    minHeight: 22,
     paddingVertical: spacing.md,
-    lineHeight: typography.lineHeight.normal,
   },
   inputMultiline: {
     height: 'auto',
@@ -145,13 +145,11 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     color: colors.error,
     marginTop: spacing.xs,
-    lineHeight: typography.lineHeight.normal,
   },
   helperText: {
     fontSize: typography.fontSizes.sm,
     color: colors.textSecondary,
     marginTop: spacing.xs,
-    lineHeight: typography.lineHeight.normal,
   },
 });
 

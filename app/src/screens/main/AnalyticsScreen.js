@@ -1,263 +1,221 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
   Alert,
   Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-  FlatList,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../context/AuthContext';
 import { analyticsApi, clientApi } from '../../api';
-import { Card, Button, Input, Loading, EmptyState } from '../../components';
-import SimpleChart from '../../components/SimpleChart';
-import StatsCard from '../../components/StatsCard';
-import { colors, typography, spacing, commonStyles } from '../../styles/theme';
+import { Button, Card, EmptyState, Input, Loading, SimpleChart, StatsCard } from '../../components';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../../styles/theme';
+
+const PLATFORMS = ['Facebook', 'Instagram', 'LinkedIn', 'Google', 'TikTok', 'Other'];
+
+const emptyForm = {
+  clientId: '',
+  campaignName: '',
+  platform: 'Facebook',
+  reportMonth: new Date().toISOString().slice(0, 7),
+  reach: '',
+  impressions: '',
+  engagement: '',
+  clicks: '',
+  conversions: '',
+};
+
+const toNumberOrZero = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 const AnalyticsScreen = () => {
-  const { hasRole } = useAuth();
-  const [campaigns, setCampaigns] = useState([]);
+  const [records, setRecords] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [summary, setSummary] = useState({
-    totalCampaigns: 0,
-    totalReach: 0,
-    totalEngagement: 0,
-    totalClicks: 0,
-    totalConversions: 0,
-    avgEngagementRate: 0,
-    avgConversionRate: 0,
-  });
-
-  // Modal states
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [searchText, setSearchText] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [formData, setFormData] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form data
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    client: '',
-    startDate: new Date(),
-    endDate: new Date(),
-    budget: '',
-    targetAudience: '',
-    platform: 'Social Media',
-    status: 'Active',
-  });
+  const filteredRecords = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    if (!query) return records;
 
-  const fetchCampaigns = useCallback(async () => {
+    return records.filter((record) => {
+      const clientName = record.clientId?.name || '';
+      return (
+        record.campaignName?.toLowerCase().includes(query) ||
+        record.platform?.toLowerCase().includes(query) ||
+        clientName.toLowerCase().includes(query) ||
+        record.reportMonth?.toLowerCase().includes(query)
+      );
+    });
+  }, [records, searchText]);
+
+  const summary = useMemo(() => {
+    return records.reduce((acc, record) => {
+      acc.totalReach += toNumberOrZero(record.reach);
+      acc.totalImpressions += toNumberOrZero(record.impressions);
+      acc.totalEngagement += toNumberOrZero(record.engagement);
+      acc.totalClicks += toNumberOrZero(record.clicks);
+      acc.totalConversions += toNumberOrZero(record.conversions);
+      return acc;
+    }, {
+      totalReach: 0,
+      totalImpressions: 0,
+      totalEngagement: 0,
+      totalClicks: 0,
+      totalConversions: 0,
+    });
+  }, [records]);
+
+  const chartData = useMemo(() => {
+    return filteredRecords.slice(0, 5).map((record) => ({
+      label: record.campaignName?.slice(0, 10) || 'Campaign',
+      value: toNumberOrZero(record.reach),
+    }));
+  }, [filteredRecords]);
+
+  const fetchData = useCallback(async () => {
     try {
       setError('');
-      const response = await analyticsApi.getCampaigns();
-      setCampaigns(response || []);
-      
-      // Calculate summary
-      const campaignsData = response || [];
-      const totalReach = campaignsData.reduce((sum, c) => sum + (c.reach || 0), 0);
-      const totalEngagement = campaignsData.reduce((sum, c) => sum + (c.engagement || 0), 0);
-      const totalClicks = campaignsData.reduce((sum, c) => sum + (c.clicks || 0), 0);
-      const totalConversions = campaignsData.reduce((sum, c) => sum + (c.conversions || 0), 0);
-      
-      setSummary({
-        totalCampaigns: campaignsData.length,
-        totalReach,
-        totalEngagement,
-        totalClicks,
-        totalConversions,
-        avgEngagementRate: totalReach > 0 ? ((totalEngagement / totalReach) * 100).toFixed(1) : 0,
-        avgConversionRate: totalClicks > 0 ? ((totalConversions / totalClicks) * 100).toFixed(1) : 0,
-      });
-    } catch (error) {
-      console.log('Campaigns error:', error);
-      setError(error.message || 'Failed to load campaigns');
+      const [analyticsResponse, clientsResponse] = await Promise.all([
+        analyticsApi.getAnalytics(),
+        clientApi.getClients(),
+      ]);
+
+      setRecords(analyticsResponse || []);
+      setClients(clientsResponse || []);
+    } catch (fetchError) {
+      console.log('Analytics screen error:', fetchError);
+      setError(fetchError.message || 'Failed to load analytics data');
     }
   }, []);
 
-  const fetchClients = useCallback(async () => {
-    try {
-      if (hasRole(['Admin', 'Manager'])) {
-        const response = await clientApi.getClients();
-        setClients(response || []);
-      }
-    } catch (error) {
-      console.log('Clients error:', error);
-    }
-  }, [hasRole]);
-
   const loadData = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchCampaigns(), fetchClients()]);
+    await fetchData();
     setLoading(false);
-  }, [fetchCampaigns, fetchClients]);
+  }, [fetchData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchCampaigns(), fetchClients()]);
+    await fetchData();
     setRefreshing(false);
-  }, [fetchCampaigns, fetchClients]);
+  }, [fetchData]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      client: '',
-      startDate: new Date(),
-      endDate: new Date(),
-      budget: '',
-      targetAudience: '',
-      platform: 'Social Media',
-      status: 'Active',
-    });
+    setFormData(emptyForm);
+    setEditingRecord(null);
     setError('');
   };
 
   const openAddModal = () => {
     resetForm();
-    setAddModalVisible(true);
+    setModalVisible(true);
   };
 
-  const openEditModal = (campaign) => {
-    setSelectedCampaign(campaign);
+  const openEditModal = (record) => {
+    setEditingRecord(record);
     setFormData({
-      name: campaign.name || '',
-      description: campaign.description || '',
-      client: campaign.client || '',
-      startDate: campaign.startDate ? new Date(campaign.startDate) : new Date(),
-      endDate: campaign.endDate ? new Date(campaign.endDate) : new Date(),
-      budget: campaign.budget ? campaign.budget.toString() : '',
-      targetAudience: campaign.targetAudience || '',
-      platform: campaign.platform || 'Social Media',
-      status: campaign.status || 'Active',
+      clientId: record.clientId?._id || record.clientId || '',
+      campaignName: record.campaignName || '',
+      platform: record.platform || 'Facebook',
+      reportMonth: record.reportMonth || new Date().toISOString().slice(0, 7),
+      reach: String(record.reach ?? ''),
+      impressions: String(record.impressions ?? ''),
+      engagement: String(record.engagement ?? ''),
+      clicks: String(record.clicks ?? ''),
+      conversions: String(record.conversions ?? ''),
     });
-    setEditModalVisible(true);
+    setError('');
+    setModalVisible(true);
   };
 
-  const openDetailsModal = (campaign) => {
-    setSelectedCampaign(campaign);
-    setDetailsModalVisible(true);
-  };
-
-  const closeModals = () => {
-    setAddModalVisible(false);
-    setEditModalVisible(false);
-    setDetailsModalVisible(false);
-    setSelectedCampaign(null);
+  const closeModal = () => {
+    setModalVisible(false);
     resetForm();
   };
 
   const validateForm = () => {
-    if (!formData.name.trim()) {
-      setError('Campaign name is required');
-      return false;
-    }
-    if (!formData.client.trim()) {
+    if (!formData.clientId) {
       setError('Client is required');
       return false;
     }
-    if (!formData.budget.trim()) {
-      setError('Budget is required');
+
+    if (!formData.campaignName.trim()) {
+      setError('Campaign name is required');
       return false;
     }
-    const budget = parseFloat(formData.budget);
-    if (isNaN(budget) || budget <= 0) {
-      setError('Budget must be a positive number');
+
+    if (!/^\d{4}-\d{2}$/.test(formData.reportMonth)) {
+      setError('Report month must be in YYYY-MM format');
       return false;
     }
-    if (formData.startDate >= formData.endDate) {
-      setError('End date must be after start date');
-      return false;
+
+    const numericFields = ['reach', 'impressions', 'engagement', 'clicks', 'conversions'];
+    for (const field of numericFields) {
+      if (formData[field] && Number(formData[field]) < 0) {
+        setError(`${field} must be zero or greater`);
+        return false;
+      }
     }
+
     return true;
   };
 
-  const handleAddCampaign = async () => {
+  const buildPayload = () => ({
+    clientId: formData.clientId,
+    campaignName: formData.campaignName.trim(),
+    platform: formData.platform,
+    reportMonth: formData.reportMonth,
+    reach: toNumberOrZero(formData.reach),
+    impressions: toNumberOrZero(formData.impressions),
+    engagement: toNumberOrZero(formData.engagement),
+    clicks: toNumberOrZero(formData.clicks),
+    conversions: toNumberOrZero(formData.conversions),
+  });
+
+  const handleSubmit = async () => {
     if (!validateForm()) return;
 
     setSubmitting(true);
     setError('');
-
     try {
-      const campaignData = {
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        client: formData.client.trim(),
-        startDate: formData.startDate.toISOString(),
-        endDate: formData.endDate.toISOString(),
-        budget: parseFloat(formData.budget),
-        targetAudience: formData.targetAudience.trim(),
-        platform: formData.platform,
-        status: formData.status,
-      };
-
-      const result = await analyticsApi.createCampaign(campaignData);
-
-      if (result.success || result.data) {
-        Alert.alert('Success', 'Campaign created successfully');
-        closeModals();
-        await fetchCampaigns();
+      const payload = buildPayload();
+      if (editingRecord) {
+        await analyticsApi.updateAnalytics(editingRecord._id, payload);
+        Alert.alert('Success', 'Analytics record updated successfully');
       } else {
-        setError(result.error || 'Failed to create campaign');
+        await analyticsApi.createAnalytics(payload);
+        Alert.alert('Success', 'Analytics record created successfully');
       }
-    } catch (error) {
-      setError(error.message || 'Failed to create campaign');
+
+      closeModal();
+      await fetchData();
+    } catch (submitError) {
+      setError(submitError.message || 'Failed to save analytics record');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEditCampaign = async () => {
-    if (!validateForm()) return;
-
-    setSubmitting(true);
-    setError('');
-
-    try {
-      const campaignData = {
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        client: formData.client.trim(),
-        startDate: formData.startDate.toISOString(),
-        endDate: formData.endDate.toISOString(),
-        budget: parseFloat(formData.budget),
-        targetAudience: formData.targetAudience.trim(),
-        platform: formData.platform,
-        status: formData.status,
-      };
-
-      const result = await analyticsApi.updateCampaign(selectedCampaign._id, campaignData);
-
-      if (result.success || result.data) {
-        Alert.alert('Success', 'Campaign updated successfully');
-        closeModals();
-        await fetchCampaigns();
-      } else {
-        setError(result.error || 'Failed to update campaign');
-      }
-    } catch (error) {
-      setError(error.message || 'Failed to update campaign');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteCampaign = (campaign) => {
+  const handleDelete = (record) => {
     Alert.alert(
-      'Delete Campaign',
-      `Are you sure you want to delete "${campaign.name}"? This action cannot be undone.`,
+      'Delete Analytics Record',
+      `Delete ${record.campaignName}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -265,427 +223,183 @@ const AnalyticsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const result = await analyticsApi.deleteCampaign(campaign._id);
-              if (result.success || result.data) {
-                Alert.alert('Success', 'Campaign deleted successfully');
-                await fetchCampaigns();
-              } else {
-                Alert.alert('Error', result.error || 'Failed to delete campaign');
-              }
-            } catch (error) {
-              Alert.alert('Error', error.message || 'Failed to delete campaign');
+              await analyticsApi.deleteAnalytics(record._id);
+              Alert.alert('Success', 'Analytics record deleted successfully');
+              await fetchData();
+            } catch (deleteError) {
+              Alert.alert('Error', deleteError.message || 'Failed to delete analytics record');
             }
           },
         },
-      ]
+      ],
     );
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const formatCurrency = (amount) => {
-    return `$${(amount || 0).toLocaleString()}`;
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active': return colors.success;
-      case 'Completed': return colors.info;
-      case 'Paused': return colors.warning;
-      case 'Cancelled': return colors.error;
-      default: return colors.gray400;
-    }
   };
 
   if (loading) {
     return <Loading fullScreen message="Loading analytics..." />;
   }
 
-  const renderCampaignItem = ({ item }) => (
-    <Card key={item._id} style={styles.campaignCard}>
-      <View style={styles.campaignHeader}>
-        <View style={styles.campaignInfo}>
-          <Text style={styles.campaignName}>{item.name}</Text>
-          <Text style={styles.campaignClient}>
-            {item.clientName || (typeof item.client === 'object' ? item.client.name : item.client)}
-          </Text>
-        </View>
-        <View style={styles.campaignStatus}>
-          <Text style={[
-            styles.statusText,
-            { color: getStatusColor(item.status) }
-          ]}>
-            {item.status}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.campaignMetrics}>
-        <View style={styles.metricRow}>
-          <Text style={styles.metricLabel}>Reach:</Text>
-          <Text style={styles.metricValue}>{(item.reach || 0).toLocaleString()}</Text>
-        </View>
-        <View style={styles.metricRow}>
-          <Text style={styles.metricLabel}>Engagement:</Text>
-          <Text style={styles.metricValue}>{(item.engagement || 0).toLocaleString()}</Text>
-        </View>
-        <View style={styles.metricRow}>
-          <Text style={styles.metricLabel}>Clicks:</Text>
-          <Text style={styles.metricValue}>{(item.clicks || 0).toLocaleString()}</Text>
-        </View>
-        <View style={styles.metricRow}>
-          <Text style={styles.metricLabel}>Conversions:</Text>
-          <Text style={styles.metricValue}>{(item.conversions || 0).toLocaleString()}</Text>
-        </View>
-      </View>
-
-      <View style={styles.campaignActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => openDetailsModal(item)}
-        >
-          <Text style={styles.actionButtonText}>View</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => openEditModal(item)}
-        >
-          <Text style={styles.actionButtonText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDeleteCampaign(item)}
-        >
-          <Text style={[styles.actionButtonText, styles.deleteButtonText]}>
-            Delete
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </Card>
-  );
-
-  const renderAddEditModal = () => {
-    const isEdit = editModalVisible;
-    const modalVisible = isEdit ? editModalVisible : addModalVisible;
-
-    return (
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={closeModals}
-      >
-        <SafeAreaView style={commonStyles.safeArea}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {isEdit ? 'Edit Campaign' : 'Create Campaign'}
-              </Text>
-              <TouchableOpacity onPress={closeModals}>
-                <Text style={styles.modalClose}>×</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalContent}>
-              {error && (
-                <View style={styles.modalError}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              )}
-
-              <Input
-                label="Campaign Name"
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-                placeholder="Enter campaign name"
-                style={styles.modalInput}
-              />
-
-              <Input
-                label="Client"
-                value={formData.client}
-                onChangeText={(text) => setFormData({ ...formData, client: text })}
-                placeholder="Enter client name"
-                style={styles.modalInput}
-              />
-
-              <Input
-                label="Description"
-                value={formData.description}
-                onChangeText={(text) => setFormData({ ...formData, description: text })}
-                placeholder="Enter campaign description"
-                multiline
-                numberOfLines={3}
-                style={styles.modalInput}
-              />
-
-              <Input
-                label="Budget"
-                value={formData.budget}
-                onChangeText={(text) => setFormData({ ...formData, budget: text })}
-                placeholder="Enter budget amount"
-                keyboardType="numeric"
-                style={styles.modalInput}
-              />
-
-              <Input
-                label="Target Audience"
-                value={formData.targetAudience}
-                onChangeText={(text) => setFormData({ ...formData, targetAudience: text })}
-                placeholder="Enter target audience"
-                style={styles.modalInput}
-              />
-
-              <View style={styles.modalInput}>
-                <Text style={styles.inputLabel}>Platform</Text>
-                <View style={styles.platformOptions}>
-                  {['Social Media', 'Email', 'Website', 'Mobile App'].map((platform) => (
-                    <TouchableOpacity
-                      key={platform}
-                      style={[
-                        styles.platformOption,
-                        formData.platform === platform && styles.selectedPlatformOption,
-                      ]}
-                      onPress={() => setFormData({ ...formData, platform })}
-                    >
-                      <Text style={styles.platformOptionText}>{platform}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.modalInput}>
-                <Text style={styles.inputLabel}>Status</Text>
-                <View style={styles.statusOptions}>
-                  {['Active', 'Paused', 'Completed', 'Cancelled'].map((status) => (
-                    <TouchableOpacity
-                      key={status}
-                      style={[
-                        styles.statusOption,
-                        formData.status === status && styles.selectedStatusOption,
-                        { borderLeftColor: getStatusColor(status) }
-                      ]}
-                      onPress={() => setFormData({ ...formData, status })}
-                    >
-                      <Text style={styles.statusOptionText}>{status}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <Button
-                title="Cancel"
-                onPress={closeModals}
-                style={styles.cancelButton}
-              />
-              <Button
-                title={isEdit ? 'Update Campaign' : 'Create Campaign'}
-                onPress={isEdit ? handleEditCampaign : handleAddCampaign}
-                loading={submitting}
-                disabled={submitting}
-              />
-            </View>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    );
-  };
-
-  const renderDetailsModal = () => (
-    <Modal
-      visible={detailsModalVisible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={closeModals}
-    >
-      <SafeAreaView style={commonStyles.safeArea}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Campaign Details</Text>
-            <TouchableOpacity onPress={closeModals}>
-              <Text style={styles.modalClose}>×</Text>
-            </TouchableOpacity>
-          </View>
-
-          {selectedCampaign && (
-            <ScrollView style={styles.modalContent}>
-              <Card style={styles.detailsCard}>
-                <Text style={styles.detailsTitle}>Campaign Information</Text>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Name:</Text>
-                  <Text style={styles.detailsValue}>{selectedCampaign.name}</Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Client:</Text>
-                  <Text style={styles.detailsValue}>
-                    {selectedCampaign.clientName || (typeof selectedCampaign.client === 'object' 
-                      ? selectedCampaign.client.name 
-                      : selectedCampaign.client)}
-                  </Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Status:</Text>
-                  <Text style={[
-                    styles.statusText,
-                    { color: getStatusColor(selectedCampaign.status) }
-                  ]}>
-                    {selectedCampaign.status}
-                  </Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Platform:</Text>
-                  <Text style={styles.detailsValue}>{selectedCampaign.platform}</Text>
-                </View>
-                {selectedCampaign.description && (
-                  <View style={styles.detailsRow}>
-                    <Text style={styles.detailsLabel}>Description:</Text>
-                    <Text style={styles.detailsValue}>{selectedCampaign.description}</Text>
-                  </View>
-                )}
-              </Card>
-
-              <Card style={styles.detailsCard}>
-                <Text style={styles.detailsTitle}>Performance Metrics</Text>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Reach:</Text>
-                  <Text style={styles.detailsValue}>{(selectedCampaign.reach || 0).toLocaleString()}</Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Engagement:</Text>
-                  <Text style={styles.detailsValue}>{(selectedCampaign.engagement || 0).toLocaleString()}</Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Clicks:</Text>
-                  <Text style={styles.detailsValue}>{(selectedCampaign.clicks || 0).toLocaleString()}</Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Conversions:</Text>
-                  <Text style={styles.detailsValue}>{(selectedCampaign.conversions || 0).toLocaleString()}</Text>
-                </View>
-                <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Budget:</Text>
-                  <Text style={styles.detailsValue}>{formatCurrency(selectedCampaign.budget)}</Text>
-                </View>
-              </Card>
-
-              <View style={styles.detailsActions}>
-                <Button
-                  title="Edit Campaign"
-                  onPress={() => {
-                    closeModals();
-                    openEditModal(selectedCampaign);
-                  }}
-                  style={styles.detailsButton}
-                />
-              </View>
-            </ScrollView>
-          )}
-        </View>
-      </SafeAreaView>
-    </Modal>
-  );
-
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <ScrollView
         style={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Header */}
         <Card style={styles.headerCard}>
-          <Text style={styles.headerTitle}>Campaign Analytics</Text>
+          <Text style={styles.headerTitle}>Analytics Dashboard</Text>
           <Text style={styles.headerSubtitle}>
-            Track and manage marketing campaigns
+            Manage campaign analytics with live backend data
           </Text>
-          <Button
-            title="Create Campaign"
-            onPress={openAddModal}
-            style={styles.addButton}
-          />
+          <Button title="Add Record" onPress={openAddModal} style={styles.headerButton} />
         </Card>
 
-        {error && (
+        {error ? (
           <Card style={styles.errorCard}>
             <Text style={styles.errorText}>{error}</Text>
           </Card>
-        )}
+        ) : null}
 
-        {/* Statistics Cards */}
         <View style={styles.statsGrid}>
-          <StatsCard
-            title="Total Campaigns"
-            value={summary.totalCampaigns}
-            color={colors.primary}
-          />
-          <StatsCard
-            title="Total Reach"
-            value={summary.totalReach.toLocaleString()}
-            color={colors.info}
-          />
-          <StatsCard
-            title="Total Engagement"
-            value={summary.totalEngagement.toLocaleString()}
-            color={colors.success}
-          />
-          <StatsCard
-            title="Total Conversions"
-            value={summary.totalConversions.toLocaleString()}
-            color={colors.warning}
-          />
+          <StatsCard title="Reach" value={summary.totalReach} color={colors.primary} icon="R" />
+          <StatsCard title="Engagement" value={summary.totalEngagement} color={colors.success} icon="E" />
+          <StatsCard title="Clicks" value={summary.totalClicks} color={colors.warning} icon="C" />
+          <StatsCard title="Conversions" value={summary.totalConversions} color={colors.info} icon="V" />
         </View>
 
-        {/* Charts */}
-        {campaigns.length > 0 && (
-          <>
-            <SimpleChart
-              title="Campaign Performance"
-              type="bar"
-              data={campaigns.slice(0, 5).map(campaign => ({
-                label: campaign.name.substring(0, 15),
-                value: campaign.engagement || 0,
-              }))}
-              color={colors.primary}
-              height={200}
-            />
+        <SimpleChart
+          title="Campaign Reach"
+          data={chartData}
+          type="bar"
+          color={colors.primary}
+          height={220}
+        />
 
-            <SimpleChart
-              title="Reach Distribution"
-              type="pie"
-              data={campaigns.slice(0, 4).map(campaign => ({
-                label: campaign.name.substring(0, 10),
-                value: campaign.reach || 0,
-              }))}
-              color={colors.info}
-              height={200}
-            />
-          </>
-        )}
+        <Card style={styles.filterCard}>
+          <Input
+            placeholder="Search by campaign, client, month, or platform"
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        </Card>
 
-        {/* Campaigns List */}
-        <Card style={styles.campaignsCard}>
-          <Text style={styles.cardTitle}>
-            Campaigns ({campaigns.length})
-          </Text>
-          {campaigns.length === 0 ? (
+        <Card style={styles.listCard}>
+          <Text style={styles.sectionTitle}>Analytics Records ({filteredRecords.length})</Text>
+          {filteredRecords.length === 0 ? (
             <EmptyState
-              title="No campaigns found"
-              message="No campaigns have been created yet."
+              title="No analytics records"
+              message={records.length === 0 ? 'Create your first analytics record.' : 'No records match your search.'}
+              actionLabel="Add Record"
+              onAction={openAddModal}
             />
           ) : (
-            campaigns.map(renderCampaignItem)
+            filteredRecords.map((record) => (
+              <Card key={record._id} style={styles.recordCard}>
+                <View style={styles.recordHeader}>
+                  <View style={styles.recordHeaderText}>
+                    <Text style={styles.recordTitle}>{record.campaignName}</Text>
+                    <Text style={styles.recordSubtitle}>
+                      {record.clientId?.name || 'Unknown Client'} • {record.platform || 'Other'}
+                    </Text>
+                  </View>
+                  <Text style={styles.recordMonth}>{record.reportMonth}</Text>
+                </View>
+
+                <View style={styles.metricsRow}>
+                  <Text style={styles.metricText}>Reach: {toNumberOrZero(record.reach)}</Text>
+                  <Text style={styles.metricText}>Impressions: {toNumberOrZero(record.impressions)}</Text>
+                </View>
+                <View style={styles.metricsRow}>
+                  <Text style={styles.metricText}>Engagement: {toNumberOrZero(record.engagement)}</Text>
+                  <Text style={styles.metricText}>Clicks: {toNumberOrZero(record.clicks)}</Text>
+                </View>
+                <Text style={styles.metricText}>Conversions: {toNumberOrZero(record.conversions)}</Text>
+
+                <View style={styles.actionsRow}>
+                  <Button title="Edit" variant="outline" size="sm" onPress={() => openEditModal(record)} style={styles.actionButton} />
+                  <Button title="Delete" variant="danger" size="sm" onPress={() => handleDelete(record)} style={styles.actionButton} />
+                </View>
+              </Card>
+            ))
           )}
         </Card>
       </ScrollView>
 
-      {/* Modals */}
-      {renderAddEditModal()}
-      {renderDetailsModal()}
+      <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeModal}>
+        <SafeAreaView style={commonStyles.safeArea}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{editingRecord ? 'Edit Analytics Record' : 'Add Analytics Record'}</Text>
+              <TouchableOpacity onPress={closeModal}>
+                <Text style={styles.modalClose}>x</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {error ? (
+                <Card style={styles.errorCard}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </Card>
+              ) : null}
+
+              <View style={styles.selectorGroup}>
+                <Text style={styles.selectorLabel}>Client</Text>
+                <View style={styles.selectorOptions}>
+                  {clients.map((client) => (
+                    <TouchableOpacity
+                      key={client._id}
+                      style={[styles.selectorChip, formData.clientId === client._id && styles.selectorChipActive]}
+                      onPress={() => setFormData((current) => ({ ...current, clientId: client._id }))}
+                    >
+                      <Text style={styles.selectorChipText}>{client.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <Input
+                label="Campaign Name"
+                value={formData.campaignName}
+                onChangeText={(text) => setFormData((current) => ({ ...current, campaignName: text }))}
+                placeholder="Spring growth campaign"
+              />
+
+              <View style={styles.selectorGroup}>
+                <Text style={styles.selectorLabel}>Platform</Text>
+                <View style={styles.selectorOptions}>
+                  {PLATFORMS.map((platform) => (
+                    <TouchableOpacity
+                      key={platform}
+                      style={[styles.selectorChip, formData.platform === platform && styles.selectorChipActive]}
+                      onPress={() => setFormData((current) => ({ ...current, platform }))}
+                    >
+                      <Text style={styles.selectorChipText}>{platform}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <Input
+                label="Report Month"
+                value={formData.reportMonth}
+                onChangeText={(text) => setFormData((current) => ({ ...current, reportMonth: text }))}
+                placeholder="YYYY-MM"
+                helper="Example: 2026-05"
+              />
+
+              <Input label="Reach" value={formData.reach} onChangeText={(text) => setFormData((current) => ({ ...current, reach: text }))} keyboardType="numeric" />
+              <Input label="Impressions" value={formData.impressions} onChangeText={(text) => setFormData((current) => ({ ...current, impressions: text }))} keyboardType="numeric" />
+              <Input label="Engagement" value={formData.engagement} onChangeText={(text) => setFormData((current) => ({ ...current, engagement: text }))} keyboardType="numeric" />
+              <Input label="Clicks" value={formData.clicks} onChangeText={(text) => setFormData((current) => ({ ...current, clicks: text }))} keyboardType="numeric" />
+              <Input label="Conversions" value={formData.conversions} onChangeText={(text) => setFormData((current) => ({ ...current, conversions: text }))} keyboardType="numeric" />
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <Button title="Cancel" variant="outline" onPress={closeModal} style={styles.modalActionButton} />
+              <Button title={editingRecord ? 'Update' : 'Create'} onPress={handleSubmit} loading={submitting} style={styles.modalActionButton} />
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -698,7 +412,7 @@ const styles = StyleSheet.create({
   },
   headerCard: {
     backgroundColor: colors.navy,
-    borderRadius: spacing.lg,
+    borderRadius: borderRadius.lg,
     padding: spacing.lg,
     marginBottom: spacing.md,
     borderLeftWidth: 4,
@@ -715,114 +429,83 @@ const styles = StyleSheet.create({
     color: colors.gray300,
     marginBottom: spacing.md,
   },
-  addButton: {
-    backgroundColor: colors.primary,
+  headerButton: {
+    alignSelf: 'flex-start',
   },
   errorCard: {
+    marginBottom: spacing.md,
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderColor: colors.error,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-    borderRadius: spacing.lg,
   },
   errorText: {
     color: colors.error,
-    fontSize: typography.fontSizes.md,
-    textAlign: 'center',
+    fontSize: typography.fontSizes.sm,
   },
   statsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
-  campaignsCard: {
-    backgroundColor: colors.navy,
-    borderRadius: spacing.lg,
-    padding: spacing.lg,
+  filterCard: {
     marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.navyLight,
   },
-  cardTitle: {
+  listCard: {
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
     fontSize: typography.fontSizes.lg,
     fontWeight: typography.fontWeights.semibold,
-    color: colors.white,
+    color: colors.textPrimary,
     marginBottom: spacing.md,
   },
-  campaignCard: {
-    backgroundColor: colors.navyLight,
-    borderRadius: spacing.md,
-    padding: spacing.md,
+  recordCard: {
     marginBottom: spacing.md,
+    backgroundColor: colors.gray50,
   },
-  campaignHeader: {
+  recordHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
-  campaignInfo: {
+  recordHeaderText: {
     flex: 1,
+    marginRight: spacing.md,
   },
-  campaignName: {
+  recordTitle: {
     fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.semibold,
-    color: colors.white,
-    marginBottom: spacing.xs,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.textPrimary,
   },
-  campaignClient: {
+  recordSubtitle: {
     fontSize: typography.fontSizes.sm,
-    color: colors.gray300,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
-  campaignStatus: {
-    alignItems: 'flex-end',
-  },
-  statusText: {
+  recordMonth: {
     fontSize: typography.fontSizes.sm,
+    color: colors.primary,
     fontWeight: typography.fontWeights.semibold,
   },
-  campaignMetrics: {
-    marginBottom: spacing.md,
-  },
-  metricRow: {
+  metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: spacing.sm,
     marginBottom: spacing.xs,
   },
-  metricLabel: {
+  metricText: {
     fontSize: typography.fontSizes.sm,
-    color: colors.gray300,
+    color: colors.textPrimary,
   },
-  metricValue: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.white,
-    fontWeight: typography.fontWeights.semibold,
-  },
-  campaignActions: {
+  actionsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
+    marginTop: spacing.md,
   },
   actionButton: {
     flex: 1,
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: spacing.sm,
-    alignItems: 'center',
   },
-  deleteButton: {
-    backgroundColor: colors.error,
-  },
-  actionButtonText: {
-    fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.semibold,
-    color: colors.white,
-  },
-  deleteButtonText: {
-    color: colors.white,
-  },
-  // Modal styles
   modalContainer: {
     flex: 1,
     backgroundColor: colors.background,
@@ -841,73 +524,42 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   modalClose: {
-    fontSize: typography.fontSizes['2xl'],
-    color: colors.gray400,
-    padding: spacing.xs,
+    fontSize: typography.fontSizes.xl,
+    color: colors.gray300,
   },
-  modalContent: {
+  modalBody: {
     flex: 1,
     padding: spacing.md,
   },
-  modalError: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: colors.error,
-    borderWidth: 1,
-    borderRadius: spacing.md,
-    padding: spacing.md,
+  selectorGroup: {
     marginBottom: spacing.md,
   },
-  modalInput: {
-    marginBottom: spacing.md,
-  },
-  inputLabel: {
+  selectorLabel: {
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.semibold,
     color: colors.white,
     marginBottom: spacing.sm,
   },
-  platformOptions: {
+  selectorOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  platformOption: {
+  selectorChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
     backgroundColor: colors.navyLight,
-    borderRadius: spacing.sm,
     borderWidth: 1,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
+    borderColor: colors.gray700,
   },
-  selectedPlatformOption: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+  selectorChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(37, 99, 235, 0.2)',
   },
-  platformOptionText: {
-    fontSize: typography.fontSizes.sm,
+  selectorChipText: {
     color: colors.white,
-    fontWeight: typography.fontWeights.semibold,
-  },
-  statusOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  statusOption: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.navyLight,
-    borderRadius: spacing.sm,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-  },
-  selectedStatusOption: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-  },
-  statusOptionText: {
     fontSize: typography.fontSizes.sm,
-    color: colors.white,
-    fontWeight: typography.fontWeights.semibold,
   },
   modalActions: {
     flexDirection: 'row',
@@ -916,43 +568,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.navyLight,
   },
-  cancelButton: {
-    backgroundColor: colors.gray700,
-  },
-  // Details modal styles
-  detailsCard: {
-    backgroundColor: colors.navyLight,
-    borderRadius: spacing.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  detailsTitle: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.semibold,
-    color: colors.white,
-    marginBottom: spacing.md,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  detailsLabel: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.gray300,
-    fontWeight: typography.fontWeights.medium,
-  },
-  detailsValue: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.white,
-    fontWeight: typography.fontWeights.semibold,
-  },
-  detailsActions: {
-    padding: spacing.md,
-  },
-  detailsButton: {
-    backgroundColor: colors.primary,
+  modalActionButton: {
+    flex: 1,
   },
 });
 

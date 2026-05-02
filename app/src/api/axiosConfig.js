@@ -1,9 +1,20 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-// API Base URL - Load from .env or use default
-// For physical device: Replace with your computer's IP
-const API_URL = process.env.API_URL || 'http://localhost:5000/api';
+const getDefaultApiUrl = () => {
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:5000/api';
+  }
+
+  return 'http://localhost:5000/api';
+};
+
+// Expo only exposes EXPO_PUBLIC_* env vars to the client bundle.
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  process.env.API_URL ||
+  getDefaultApiUrl();
 
 // Create axios instance
 const apiClient = axios.create({
@@ -57,7 +68,7 @@ apiClient.interceptors.response.use(
       console.log('API Error:', error.response.data?.message || error.response.data);
     } else if (error.request) {
       // No response received
-      console.log('Network Error - No response from server');
+      console.log(`Network Error - No response from server at ${API_URL}`);
     } else {
       // Request setup error
       console.log('Request Error:', error.message);

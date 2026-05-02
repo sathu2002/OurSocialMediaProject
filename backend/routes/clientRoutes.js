@@ -18,7 +18,7 @@ router.post('/register', registerClient);
 router.use(protect);
 
 router.route('/')
-  .get(authorize('Admin', 'Manager'), getClients)
+  .get(authorize('Admin', 'Manager', 'Staff'), getClients)
   .post(authorize('Admin', 'Manager'), createClient);
 
 router.route('/:id')

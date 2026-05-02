@@ -8,13 +8,12 @@ import {
   RefreshControl,
   Alert,
   Modal,
-  DatePickerIOS,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { paymentApi, clientApi } from '../../api';
 import { Card, Button, Input, Loading, EmptyState } from '../../components';
-import { colors, typography, spacing, commonStyles } from '../../styles/theme';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../../styles/theme';
 
 const PaymentsScreen = () => {
   const { hasRole } = useAuth();
@@ -42,14 +41,12 @@ const PaymentsScreen = () => {
 
   // Form data
   const [formData, setFormData] = useState({
-    invoiceNumber: '',
-    client: '',
+    clientId: '',
     amount: '',
-    method: 'Credit Card',
+    package: 'Silver',
+    method: 'Bank Transfer',
     status: 'Pending',
-    dueDate: new Date(),
-    paidDate: null,
-    description: '',
+    note: '',
   });
 
   const fetchPayments = async () => {
@@ -118,9 +115,8 @@ const PaymentsScreen = () => {
     if (searchText) {
       filtered = filtered.filter(payment =>
         payment.invoiceNumber.toLowerCase().includes(searchText.toLowerCase()) ||
-        (payment.clientName && payment.clientName.toLowerCase().includes(searchText.toLowerCase())) ||
-        (payment.client && typeof payment.client === 'object' && 
-          payment.client.name.toLowerCase().includes(searchText.toLowerCase()))
+        (payment.clientId && typeof payment.clientId === 'object' &&
+          payment.clientId.name.toLowerCase().includes(searchText.toLowerCase()))
       );
     }
 
@@ -134,14 +130,12 @@ const PaymentsScreen = () => {
 
   const resetForm = () => {
     setFormData({
-      invoiceNumber: '',
-      client: '',
+      clientId: '',
       amount: '',
-      method: 'Credit Card',
+      package: 'Silver',
+      method: 'Bank Transfer',
       status: 'Pending',
-      dueDate: new Date(),
-      paidDate: null,
-      description: '',
+      note: '',
     });
     setError('');
   };
@@ -154,14 +148,12 @@ const PaymentsScreen = () => {
   const openEditModal = (payment) => {
     setSelectedPayment(payment);
     setFormData({
-      invoiceNumber: payment.invoiceNumber || '',
-      client: payment.client || '',
+      clientId: payment.clientId?._id || payment.clientId || '',
       amount: payment.amount ? payment.amount.toString() : '',
-      method: payment.method || 'Credit Card',
+      package: payment.package || 'Silver',
+      method: payment.method || 'Bank Transfer',
       status: payment.status || 'Pending',
-      dueDate: payment.dueDate ? new Date(payment.dueDate) : new Date(),
-      paidDate: payment.paidDate ? new Date(payment.paidDate) : null,
-      description: payment.description || '',
+      note: payment.note || '',
     });
     setEditModalVisible(true);
   };
@@ -180,11 +172,7 @@ const PaymentsScreen = () => {
   };
 
   const validateForm = () => {
-    if (!formData.invoiceNumber.trim()) {
-      setError('Invoice number is required');
-      return false;
-    }
-    if (!formData.client.trim()) {
+    if (!formData.clientId.trim()) {
       setError('Client is required');
       return false;
     }
@@ -205,14 +193,6 @@ const PaymentsScreen = () => {
       setError('Status is required');
       return false;
     }
-    if (!formData.dueDate) {
-      setError('Due date is required');
-      return false;
-    }
-    if (formData.status === 'Paid' && !formData.paidDate) {
-      setError('Paid date is required when status is Paid');
-      return false;
-    }
     return true;
   };
 
@@ -224,14 +204,12 @@ const PaymentsScreen = () => {
 
     try {
       const paymentData = {
-        invoiceNumber: formData.invoiceNumber.trim(),
-        client: formData.client.trim(),
+        clientId: formData.clientId.trim(),
         amount: parseFloat(formData.amount),
+        package: formData.package,
         method: formData.method.trim(),
         status: formData.status.trim(),
-        dueDate: formData.dueDate.toISOString(),
-        paidDate: formData.paidDate ? formData.paidDate.toISOString() : null,
-        description: formData.description.trim(),
+        note: formData.note.trim(),
       };
 
       const result = await paymentApi.createPayment(paymentData);
@@ -258,14 +236,12 @@ const PaymentsScreen = () => {
 
     try {
       const paymentData = {
-        invoiceNumber: formData.invoiceNumber.trim(),
-        client: formData.client.trim(),
+        clientId: formData.clientId.trim(),
         amount: parseFloat(formData.amount),
+        package: formData.package,
         method: formData.method.trim(),
         status: formData.status.trim(),
-        dueDate: formData.dueDate.toISOString(),
-        paidDate: formData.paidDate ? formData.paidDate.toISOString() : null,
-        description: formData.description.trim(),
+        note: formData.note.trim(),
       };
 
       const result = await paymentApi.updatePayment(selectedPayment._id, paymentData);
@@ -316,17 +292,16 @@ const PaymentsScreen = () => {
       case 'Paid': return colors.success;
       case 'Pending': return colors.warning;
       case 'Overdue': return colors.error;
-      case 'Cancelled': return colors.gray400;
       default: return colors.gray400;
     }
   };
 
   const getMethodColor = (method) => {
     switch (method) {
-      case 'Credit Card': return colors.primary;
+      case 'Online': return colors.primary;
       case 'Bank Transfer': return colors.info;
       case 'Cash': return colors.success;
-      case 'Check': return colors.warning;
+      case 'Cheque': return colors.warning;
       default: return colors.gray400;
     }
   };
@@ -346,7 +321,7 @@ const PaymentsScreen = () => {
             Invoice #{payment.invoiceNumber}
           </Text>
           <Text style={styles.clientName}>
-            {payment.clientName || (typeof payment.client === 'object' ? payment.client.name : payment.client)}
+            {payment.clientId?.name || 'Unknown Client'}
           </Text>
         </View>
         <View style={styles.paymentStatus}>
@@ -367,20 +342,20 @@ const PaymentsScreen = () => {
           <Text style={styles.methodText}>
             Method: <Text style={{ color: getMethodColor(payment.method) }}>{payment.method}</Text>
           </Text>
-          <Text style={styles.dueDate}>
-            Due: {new Date(payment.dueDate).toLocaleDateString()}
-          </Text>
-          {payment.paidDate && (
+          {payment.package && (
+            <Text style={styles.dueDate}>Package: {payment.package}</Text>
+          )}
+          {payment.paidAt && (
             <Text style={styles.paidDate}>
-              Paid: {new Date(payment.paidDate).toLocaleDateString()}
+              Paid: {new Date(payment.paidAt).toLocaleDateString()}
             </Text>
           )}
         </View>
       </View>
 
-      {payment.description && (
+      {payment.note && (
         <Text style={styles.description} numberOfLines={2}>
-          {payment.description}
+          {payment.note}
         </Text>
       )}
 
@@ -439,22 +414,6 @@ const PaymentsScreen = () => {
               )}
 
               <Input
-                label="Invoice Number"
-                value={formData.invoiceNumber}
-                onChangeText={(text) => setFormData({ ...formData, invoiceNumber: text })}
-                placeholder="Enter invoice number"
-                style={styles.modalInput}
-              />
-
-              <Input
-                label="Client"
-                value={formData.client}
-                onChangeText={(text) => setFormData({ ...formData, client: text })}
-                placeholder="Enter client name or ID"
-                style={styles.modalInput}
-              />
-
-              <Input
                 label="Amount"
                 value={formData.amount}
                 onChangeText={(text) => setFormData({ ...formData, amount: text })}
@@ -464,9 +423,49 @@ const PaymentsScreen = () => {
               />
 
               <View style={styles.modalInput}>
+                <Text style={styles.inputLabel}>Client</Text>
+                <View style={styles.methodOptions}>
+                  {clients.map((client) => (
+                    <TouchableOpacity
+                      key={client._id}
+                      style={[
+                        styles.methodOption,
+                        formData.clientId === client._id && styles.selectedMethodOption,
+                      ]}
+                      onPress={() => setFormData({
+                        ...formData,
+                        clientId: client._id,
+                        package: client.package || 'Silver',
+                      })}
+                    >
+                      <Text style={styles.methodOptionText}>{client.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.modalInput}>
+                <Text style={styles.inputLabel}>Package</Text>
+                <View style={styles.methodOptions}>
+                  {['Silver', 'Gold', 'Platinum', 'Diamond'].map((pkg) => (
+                    <TouchableOpacity
+                      key={pkg}
+                      style={[
+                        styles.methodOption,
+                        formData.package === pkg && styles.selectedMethodOption,
+                      ]}
+                      onPress={() => setFormData({ ...formData, package: pkg })}
+                    >
+                      <Text style={styles.methodOptionText}>{pkg}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.modalInput}>
                 <Text style={styles.inputLabel}>Payment Method</Text>
                 <View style={styles.methodOptions}>
-                  {['Credit Card', 'Bank Transfer', 'Cash', 'Check'].map((method) => (
+                  {['Cash', 'Bank Transfer', 'Cheque', 'Online'].map((method) => (
                     <TouchableOpacity
                       key={method}
                       style={[
@@ -485,7 +484,7 @@ const PaymentsScreen = () => {
               <View style={styles.modalInput}>
                 <Text style={styles.inputLabel}>Status</Text>
                 <View style={styles.statusOptions}>
-                  {['Pending', 'Paid', 'Overdue', 'Cancelled'].map((status) => (
+                  {['Pending', 'Paid', 'Overdue'].map((status) => (
                     <TouchableOpacity
                       key={status}
                       style={[
@@ -501,37 +500,11 @@ const PaymentsScreen = () => {
                 </View>
               </View>
 
-              <View style={styles.modalInput}>
-                <Text style={styles.inputLabel}>Due Date</Text>
-                <View style={styles.datePickerContainer}>
-                  <DatePickerIOS
-                    date={formData.dueDate}
-                    onDateChange={(date) => setFormData({ ...formData, dueDate: date })}
-                    mode="date"
-                    style={styles.datePicker}
-                  />
-                </View>
-              </View>
-
-              {formData.status === 'Paid' && (
-                <View style={styles.modalInput}>
-                  <Text style={styles.inputLabel}>Paid Date</Text>
-                  <View style={styles.datePickerContainer}>
-                    <DatePickerIOS
-                      date={formData.paidDate || new Date()}
-                      onDateChange={(date) => setFormData({ ...formData, paidDate: date })}
-                      mode="date"
-                      style={styles.datePicker}
-                    />
-                  </View>
-                </View>
-              )}
-
               <Input
-                label="Description"
-                value={formData.description}
-                onChangeText={(text) => setFormData({ ...formData, description: text })}
-                placeholder="Enter payment description"
+                label="Note"
+                value={formData.note}
+                onChangeText={(text) => setFormData({ ...formData, note: text })}
+                placeholder="Optional payment note"
                 multiline
                 numberOfLines={3}
                 style={styles.modalInput}
@@ -584,9 +557,7 @@ const PaymentsScreen = () => {
                 <View style={styles.detailsRow}>
                   <Text style={styles.detailsLabel}>Client:</Text>
                   <Text style={styles.detailsValue}>
-                    {selectedPayment.clientName || (typeof selectedPayment.client === 'object' 
-                      ? selectedPayment.client.name 
-                      : selectedPayment.client)}
+                    {selectedPayment.clientId?.name || 'Unknown Client'}
                   </Text>
                 </View>
                 <View style={styles.detailsRow}>
@@ -613,23 +584,21 @@ const PaymentsScreen = () => {
                   <Text style={styles.detailsValue}>{selectedPayment.method}</Text>
                 </View>
                 <View style={styles.detailsRow}>
-                  <Text style={styles.detailsLabel}>Due Date:</Text>
-                  <Text style={styles.detailsValue}>
-                    {new Date(selectedPayment.dueDate).toLocaleDateString()}
-                  </Text>
+                  <Text style={styles.detailsLabel}>Package:</Text>
+                  <Text style={styles.detailsValue}>{selectedPayment.package || 'N/A'}</Text>
                 </View>
-                {selectedPayment.paidDate && (
+                {selectedPayment.paidAt && (
                   <View style={styles.detailsRow}>
                     <Text style={styles.detailsLabel}>Paid Date:</Text>
                     <Text style={styles.detailsValue}>
-                      {new Date(selectedPayment.paidDate).toLocaleDateString()}
+                      {new Date(selectedPayment.paidAt).toLocaleDateString()}
                     </Text>
                   </View>
                 )}
-                {selectedPayment.description && (
+                {selectedPayment.note && (
                   <View style={styles.detailsRow}>
-                    <Text style={styles.detailsLabel}>Description:</Text>
-                    <Text style={styles.detailsValue}>{selectedPayment.description}</Text>
+                    <Text style={styles.detailsLabel}>Note:</Text>
+                    <Text style={styles.detailsValue}>{selectedPayment.note}</Text>
                   </View>
                 )}
               </Card>
@@ -714,7 +683,7 @@ const PaymentsScreen = () => {
           <View style={styles.filterColumn}>
             <Text style={styles.filterLabel}>Status</Text>
             <View style={styles.filterOptions}>
-              {['All', 'Pending', 'Paid', 'Overdue', 'Cancelled'].map((status) => (
+              {['All', 'Pending', 'Paid', 'Overdue'].map((status) => (
                 <TouchableOpacity
                   key={status}
                   style={[

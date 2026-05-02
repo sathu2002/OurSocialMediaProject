@@ -100,7 +100,6 @@ const styles = StyleSheet.create({
   text: {
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.semibold,
-    lineHeight: typography.lineHeight.tight,
   },
   primary: {
     backgroundColor: colors.primary,

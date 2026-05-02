@@ -8,14 +8,12 @@ import {
   RefreshControl,
   Alert,
   Modal,
-  TextInput,
-  DatePickerIOS,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { taskApi, clientApi } from '../../api';
+import { taskApi, clientApi, userApi } from '../../api';
 import { Card, Button, Input, Loading, EmptyState } from '../../components';
-import { colors, typography, spacing, commonStyles } from '../../styles/theme';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../../styles/theme';
 
 const TasksScreen = () => {
   const { user, hasRole } = useAuth();
@@ -24,6 +22,7 @@ const TasksScreen = () => {
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [clients, setClients] = useState([]);
+  const [assignableUsers, setAssignableUsers] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [priorityFilter, setPriorityFilter] = useState('All');
@@ -40,9 +39,9 @@ const TasksScreen = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    client: '',
+    clientId: '',
     assignedTo: '',
-    dueDate: new Date(),
+    dueDate: new Date().toISOString().slice(0, 10),
     priority: 'Medium',
     status: 'Pending',
   });
@@ -72,15 +71,27 @@ const TasksScreen = () => {
     }
   };
 
+  const fetchAssignableUsers = async () => {
+    try {
+      if (hasRole(['Admin', 'Manager'])) {
+        const response = await userApi.getUsers();
+        const options = (response || []).filter((item) => item.isActive !== false);
+        setAssignableUsers(options);
+      }
+    } catch (error) {
+      console.log('Users error:', error);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([fetchTasks(), fetchClients()]);
+    await Promise.all([fetchTasks(), fetchClients(), fetchAssignableUsers()]);
     setLoading(false);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchTasks(), fetchClients()]);
+    await Promise.all([fetchTasks(), fetchClients(), fetchAssignableUsers()]);
     setRefreshing(false);
   };
 
@@ -120,9 +131,9 @@ const TasksScreen = () => {
     setFormData({
       title: '',
       description: '',
-      client: '',
+      clientId: '',
       assignedTo: '',
-      dueDate: new Date(),
+      dueDate: new Date().toISOString().slice(0, 10),
       priority: 'Medium',
       status: 'Pending',
     });
@@ -139,9 +150,9 @@ const TasksScreen = () => {
     setFormData({
       title: task.title || '',
       description: task.description || '',
-      client: task.client || '',
-      assignedTo: task.assignedTo || '',
-      dueDate: task.dueDate ? new Date(task.dueDate) : new Date(),
+      clientId: task.clientId?._id || task.clientId || '',
+      assignedTo: task.assignedTo?._id || task.assignedTo || '',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
       priority: task.priority || 'Medium',
       status: task.status || 'Pending',
     });
@@ -166,12 +177,16 @@ const TasksScreen = () => {
       setError('Title is required');
       return false;
     }
-    if (!formData.client.trim() && hasRole(['Admin', 'Manager'])) {
+    if (!formData.clientId.trim() && hasRole(['Admin', 'Manager'])) {
       setError('Client is required');
       return false;
     }
     if (!formData.assignedTo.trim() && hasRole(['Admin', 'Manager'])) {
       setError('Assignment is required');
+      return false;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.dueDate)) {
+      setError('Due date must be in YYYY-MM-DD format');
       return false;
     }
     return true;
@@ -187,9 +202,9 @@ const TasksScreen = () => {
       const taskData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
-        client: formData.client.trim(),
+        clientId: formData.clientId.trim(),
         assignedTo: formData.assignedTo.trim(),
-        dueDate: formData.dueDate.toISOString(),
+        dueDate: new Date(`${formData.dueDate}T12:00:00`).toISOString(),
         priority: formData.priority,
         status: formData.status,
       };
@@ -220,9 +235,9 @@ const TasksScreen = () => {
       const taskData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
-        client: formData.client.trim(),
+        clientId: formData.clientId.trim(),
         assignedTo: formData.assignedTo.trim(),
-        dueDate: formData.dueDate.toISOString(),
+        dueDate: new Date(`${formData.dueDate}T12:00:00`).toISOString(),
         priority: formData.priority,
         status: formData.status,
       };
@@ -288,14 +303,12 @@ const TasksScreen = () => {
       case 'Completed': return colors.success;
       case 'In Progress': return colors.info;
       case 'Pending': return colors.warning;
-      case 'Cancelled': return colors.error;
       default: return colors.gray400;
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'Urgent': return colors.error;
       case 'High': return colors.warning;
       case 'Medium': return colors.info;
       case 'Low': return colors.gray400;
@@ -336,9 +349,9 @@ const TasksScreen = () => {
             Due: {new Date(task.dueDate).toLocaleDateString()}
           </Text>
         )}
-        {task.client && (
+        {task.clientId && (
           <Text style={styles.taskClient}>
-            Client: {typeof task.client === 'object' ? task.client.name : task.client}
+            Client: {typeof task.clientId === 'object' ? task.clientId.name : task.clientId}
           </Text>
         )}
         {task.assignedTo && (
@@ -357,20 +370,24 @@ const TasksScreen = () => {
         >
           <Text style={styles.actionButtonText}>View</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => openEditModal(task)}
-        >
-          <Text style={styles.actionButtonText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDeleteTask(task)}
-        >
-          <Text style={[styles.actionButtonText, styles.deleteButtonText]}>
-            Delete
-          </Text>
-        </TouchableOpacity>
+        {hasRole(['Admin', 'Manager']) && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => openEditModal(task)}
+          >
+            <Text style={styles.actionButtonText}>Edit</Text>
+          </TouchableOpacity>
+        )}
+        {hasRole(['Admin', 'Manager']) && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={() => handleDeleteTask(task)}
+          >
+            <Text style={[styles.actionButtonText, styles.deleteButtonText]}>
+              Delete
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {task.status !== 'Completed' && (
@@ -441,40 +458,59 @@ const TasksScreen = () => {
 
               {hasRole(['Admin', 'Manager']) && (
                 <>
-                  <Input
-                    label="Client"
-                    value={formData.client}
-                    onChangeText={(text) => setFormData({ ...formData, client: text })}
-                    placeholder="Enter client name or ID"
-                    style={styles.modalInput}
-                  />
+                  <View style={styles.modalInput}>
+                    <Text style={styles.inputLabel}>Client</Text>
+                    <View style={styles.selectionOptions}>
+                      {clients.map((client) => (
+                        <TouchableOpacity
+                          key={client._id}
+                          style={[
+                            styles.selectionOption,
+                            formData.clientId === client._id && styles.selectedSelectionOption,
+                          ]}
+                          onPress={() => setFormData({ ...formData, clientId: client._id })}
+                        >
+                          <Text style={styles.selectionOptionText}>{client.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
 
-                  <Input
-                    label="Assigned To"
-                    value={formData.assignedTo}
-                    onChangeText={(text) => setFormData({ ...formData, assignedTo: text })}
-                    placeholder="Enter assignee name or ID"
-                    style={styles.modalInput}
-                  />
+                  <View style={styles.modalInput}>
+                    <Text style={styles.inputLabel}>Assigned To</Text>
+                    <View style={styles.selectionOptions}>
+                      {assignableUsers.map((assignedUser) => (
+                        <TouchableOpacity
+                          key={assignedUser._id}
+                          style={[
+                            styles.selectionOption,
+                            formData.assignedTo === assignedUser._id && styles.selectedSelectionOption,
+                          ]}
+                          onPress={() => setFormData({ ...formData, assignedTo: assignedUser._id })}
+                        >
+                          <Text style={styles.selectionOptionText}>
+                            {assignedUser.name} ({assignedUser.role})
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
                 </>
               )}
 
-              <View style={styles.modalInput}>
-                <Text style={styles.inputLabel}>Due Date</Text>
-                <View style={styles.datePickerContainer}>
-                  <DatePickerIOS
-                    date={formData.dueDate}
-                    onDateChange={(date) => setFormData({ ...formData, dueDate: date })}
-                    mode="date"
-                    style={styles.datePicker}
-                  />
-                </View>
-              </View>
+              <Input
+                label="Due Date"
+                value={formData.dueDate}
+                onChangeText={(text) => setFormData({ ...formData, dueDate: text })}
+                placeholder="YYYY-MM-DD"
+                helper="Use date format YYYY-MM-DD"
+                style={styles.modalInput}
+              />
 
               <View style={styles.modalInput}>
                 <Text style={styles.inputLabel}>Priority</Text>
                 <View style={styles.priorityOptions}>
-                  {['Low', 'Medium', 'High', 'Urgent'].map((priority) => (
+                  {['Low', 'Medium', 'High'].map((priority) => (
                     <TouchableOpacity
                       key={priority}
                       style={[
@@ -493,7 +529,7 @@ const TasksScreen = () => {
               <View style={styles.modalInput}>
                 <Text style={styles.inputLabel}>Status</Text>
                 <View style={styles.statusOptions}>
-                  {['Pending', 'In Progress', 'Completed', 'Cancelled'].map((status) => (
+                  {['Pending', 'In Progress', 'Completed'].map((status) => (
                     <TouchableOpacity
                       key={status}
                       style={[
@@ -591,16 +627,16 @@ const TasksScreen = () => {
                 </Card>
               )}
 
-              {(selectedTask.client || selectedTask.assignedTo) && (
+              {(selectedTask.clientId || selectedTask.assignedTo) && (
                 <Card style={styles.detailsCard}>
                   <Text style={styles.detailsTitle}>Assignment</Text>
-                  {selectedTask.client && (
+                  {selectedTask.clientId && (
                     <View style={styles.detailsRow}>
                       <Text style={styles.detailsLabel}>Client:</Text>
                       <Text style={styles.detailsValue}>
-                        {typeof selectedTask.client === 'object' 
-                          ? selectedTask.client.name 
-                          : selectedTask.client}
+                        {typeof selectedTask.clientId === 'object' 
+                          ? selectedTask.clientId.name 
+                          : selectedTask.clientId}
                       </Text>
                     </View>
                   )}
@@ -685,7 +721,7 @@ const TasksScreen = () => {
             <View style={styles.filterColumn}>
               <Text style={styles.filterLabel}>Status</Text>
               <View style={styles.filterOptions}>
-                {['All', 'Pending', 'In Progress', 'Completed', 'Cancelled'].map((status) => (
+                {['All', 'Pending', 'In Progress', 'Completed'].map((status) => (
                   <TouchableOpacity
                     key={status}
                     style={[
@@ -703,7 +739,7 @@ const TasksScreen = () => {
             <View style={styles.filterColumn}>
               <Text style={styles.filterLabel}>Priority</Text>
               <View style={styles.filterOptions}>
-                {['All', 'Low', 'Medium', 'High', 'Urgent'].map((priority) => (
+                {['All', 'Low', 'Medium', 'High'].map((priority) => (
                   <TouchableOpacity
                     key={priority}
                     style={[
@@ -986,6 +1022,28 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.semibold,
     color: colors.white,
     marginBottom: spacing.sm,
+  },
+  selectionOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  selectionOption: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.navyLight,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.gray700,
+  },
+  selectedSelectionOption: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    borderColor: colors.primary,
+  },
+  selectionOptionText: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.white,
+    fontWeight: typography.fontWeights.medium,
   },
   datePickerContainer: {
     backgroundColor: colors.navyLight,

@@ -30,7 +30,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.md,
     color: colors.textWhite,
     fontWeight: typography.fontWeights.medium,
-    lineHeight: typography.lineHeight.normal,
   },
 });
 

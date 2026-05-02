@@ -196,6 +196,11 @@ const styles = StyleSheet.create({
   },
   form: {
     marginBottom: spacing.lg,
+    backgroundColor: colors.navyLight,
+    borderRadius: 16,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.gray800,
   },
   loginContainer: {
     flexDirection: 'row',
@@ -219,6 +224,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     color: colors.gray500,
     textAlign: 'center',
+    lineHeight: 22,
   },
 });
 

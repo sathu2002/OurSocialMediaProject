@@ -1,5 +1,7 @@
 import apiClient from './axiosConfig';
 
+const successResponse = (data) => ({ success: true, data });
+
 /**
  * Task Management API Service
  * Role-based access: Admin/Manager (all), Staff (own tasks only) with proper error handling
@@ -71,25 +73,25 @@ export const taskApi = {
   createTask: async (taskData) => {
     try {
       // Validate input
-      const requiredFields = ['title', 'assignedTo', 'clientId'];
+      const requiredFields = ['title', 'assignedTo', 'dueDate'];
       const missingFields = requiredFields.filter(field => !taskData[field]);
       
       if (missingFields.length > 0) {
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
 
-      const validStatuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+      const validStatuses = ['Pending', 'In Progress', 'Completed'];
       if (taskData.status && !validStatuses.includes(taskData.status)) {
         throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
       }
 
-      const validPriorities = ['Low', 'Medium', 'High', 'Urgent'];
+      const validPriorities = ['Low', 'Medium', 'High'];
       if (taskData.priority && !validPriorities.includes(taskData.priority)) {
         throw new Error(`Invalid priority. Must be one of: ${validPriorities.join(', ')}`);
       }
 
       const response = await apiClient.post('/tasks', taskData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -116,7 +118,7 @@ export const taskApi = {
 
       // Validate status if provided
       if (taskData.status) {
-        const validStatuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+        const validStatuses = ['Pending', 'In Progress', 'Completed'];
         if (!validStatuses.includes(taskData.status)) {
           throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
         }
@@ -124,14 +126,14 @@ export const taskApi = {
 
       // Validate priority if provided
       if (taskData.priority) {
-        const validPriorities = ['Low', 'Medium', 'High', 'Urgent'];
+        const validPriorities = ['Low', 'Medium', 'High'];
         if (!validPriorities.includes(taskData.priority)) {
           throw new Error(`Invalid priority. Must be one of: ${validPriorities.join(', ')}`);
         }
       }
 
       const response = await apiClient.put(`/tasks/${id}`, taskData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -152,7 +154,7 @@ export const taskApi = {
       }
       
       const response = await apiClient.delete(`/tasks/${id}`);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 

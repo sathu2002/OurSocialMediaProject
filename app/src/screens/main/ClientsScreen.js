@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { clientApi, packageApi } from '../../api';
 import { Card, Button, Input, Loading, EmptyState } from '../../components';
-import { colors, typography, spacing, commonStyles } from '../../styles/theme';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../../styles/theme';
 
 const ClientsScreen = () => {
   const { hasRole } = useAuth();
@@ -41,7 +41,7 @@ const ClientsScreen = () => {
     phone: '',
     company: '',
     package: 'Silver',
-    status: 'Active',
+    status: 'active',
   });
 
   const fetchClients = async () => {
@@ -60,6 +60,12 @@ const ClientsScreen = () => {
     setLoading(true);
     await fetchClients();
     setLoading(false);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchClients();
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -89,7 +95,7 @@ const ClientsScreen = () => {
 
     // Status filter
     if (statusFilter !== 'All') {
-      filtered = filtered.filter(client => client.status === statusFilter);
+      filtered = filtered.filter(client => (client.status || '').toLowerCase() === statusFilter.toLowerCase());
     }
 
     setFilteredClients(filtered);
@@ -102,7 +108,7 @@ const ClientsScreen = () => {
       phone: '',
       company: '',
       package: 'Silver',
-      status: 'Active',
+      status: 'active',
     });
     setError('');
   };
@@ -120,7 +126,7 @@ const ClientsScreen = () => {
       phone: client.phone || '',
       company: client.company || '',
       package: client.package || 'Silver',
-      status: client.status || 'Active',
+      status: client.status || 'active',
     });
     setEditModalVisible(true);
   };
@@ -156,6 +162,10 @@ const ClientsScreen = () => {
       setError('Phone is required');
       return false;
     }
+    if (!/^[+\d()\-\s]{7,20}$/.test(formData.phone.trim())) {
+      setError('Please enter a valid phone number');
+      return false;
+    }
     if (!formData.company.trim()) {
       setError('Company is required');
       return false;
@@ -179,7 +189,7 @@ const ClientsScreen = () => {
         status: formData.status,
       });
 
-      if (result.success || result.data) {
+      if (result.success) {
         Alert.alert('Success', 'Client created successfully');
         closeModals();
         await fetchClients();
@@ -209,7 +219,7 @@ const ClientsScreen = () => {
         status: formData.status,
       });
 
-      if (result.success || result.data) {
+      if (result.success) {
         Alert.alert('Success', 'Client updated successfully');
         closeModals();
         await fetchClients();
@@ -235,7 +245,7 @@ const ClientsScreen = () => {
           onPress: async () => {
             try {
               const result = await clientApi.deleteClient(client._id);
-              if (result.success || result.data) {
+              if (result.success) {
                 Alert.alert('Success', 'Client deleted successfully');
                 await fetchClients();
               } else {
@@ -256,12 +266,13 @@ const ClientsScreen = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Active': return colors.success;
-      case 'Inactive': return colors.gray400;
-      case 'Pending': return colors.warning;
+      case 'active': return colors.success;
+      case 'inactive': return colors.gray400;
       default: return colors.gray400;
     }
   };
+
+  const getStatusLabel = (status) => (status === 'inactive' ? 'Inactive' : 'Active');
 
   const renderClientItem = (client) => (
     <Card key={client._id} style={styles.clientCard}>
@@ -281,7 +292,7 @@ const ClientsScreen = () => {
             styles.statusText,
             { color: getStatusColor(client.status) }
           ]}>
-            {client.status}
+            {getStatusLabel(client.status)}
           </Text>
         </View>
       </View>
@@ -412,7 +423,7 @@ const ClientsScreen = () => {
               <View style={styles.modalInput}>
                 <Text style={styles.inputLabel}>Status</Text>
                 <View style={styles.statusOptions}>
-                  {['Active', 'Inactive', 'Pending'].map((status) => (
+                  {['active', 'inactive'].map((status) => (
                     <TouchableOpacity
                       key={status}
                       style={[
@@ -422,7 +433,7 @@ const ClientsScreen = () => {
                       ]}
                       onPress={() => setFormData({ ...formData, status })}
                     >
-                      <Text style={styles.statusOptionText}>{status}</Text>
+                      <Text style={styles.statusOptionText}>{getStatusLabel(status)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -503,7 +514,7 @@ const ClientsScreen = () => {
                     styles.statusText,
                     { color: getStatusColor(selectedClient.status) }
                   ]}>
-                    {selectedClient.status}
+                    {getStatusLabel(selectedClient.status)}
                   </Text>
                 </View>
                 {selectedClient.packageAssignedAt && (
@@ -595,7 +606,7 @@ const ClientsScreen = () => {
             <View style={styles.filterColumn}>
               <Text style={styles.filterLabel}>Status</Text>
               <View style={styles.filterOptions}>
-                {['All', 'Active', 'Inactive', 'Pending'].map((status) => (
+                {['All', 'active', 'inactive'].map((status) => (
                   <TouchableOpacity
                     key={status}
                     style={[
@@ -604,7 +615,9 @@ const ClientsScreen = () => {
                     ]}
                     onPress={() => setStatusFilter(status)}
                   >
-                    <Text style={styles.filterOptionText}>{status}</Text>
+                    <Text style={styles.filterOptionText}>
+                      {status === 'All' ? status : getStatusLabel(status)}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>

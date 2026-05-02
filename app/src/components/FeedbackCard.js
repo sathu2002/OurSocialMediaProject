@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { Card } from './Card';
+import Card from './Card';
 import { colors, typography, spacing, borderRadius } from '../styles/theme';
 
 const FeedbackCard = ({
@@ -66,8 +66,11 @@ const FeedbackCard = ({
         <View style={styles.header}>
           <View style={styles.clientInfo}>
             <Text style={styles.clientName}>
-              {feedback.clientName || (typeof feedback.client === 'object' ? feedback.client.name : 'Unknown Client')}
+              {feedback.campaignName || feedback.clientId?.name || 'Feedback'}
             </Text>
+            {feedback.clientId?.name ? (
+              <Text style={styles.clientSubtext}>{feedback.clientId.name}</Text>
+            ) : null}
             <View style={styles.ratingContainer}>
               {renderStars(feedback.rating || 0)}
               <Text style={styles.ratingText}>({feedback.rating || 0})</Text>
@@ -135,7 +138,12 @@ const styles = StyleSheet.create({
   clientName: {
     fontSize: typography.fontSizes.lg,
     fontWeight: typography.fontWeights.semibold,
-    color: colors.white,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  clientSubtext: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.textSecondary,
     marginBottom: spacing.xs,
   },
   ratingContainer: {
@@ -152,7 +160,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: typography.fontSizes.sm,
-    color: colors.gray400,
+    color: colors.textSecondary,
     marginLeft: spacing.xs,
   },
   sentimentContainer: {
@@ -169,7 +177,7 @@ const styles = StyleSheet.create({
   },
   comment: {
     fontSize: typography.fontSizes.md,
-    color: colors.gray300,
+    color: colors.textPrimary,
     lineHeight: 20,
     marginBottom: spacing.md,
   },
@@ -180,7 +188,7 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: typography.fontSizes.sm,
-    color: colors.gray400,
+    color: colors.textSecondary,
   },
   actions: {
     flexDirection: 'row',

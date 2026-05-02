@@ -20,6 +20,10 @@ export const authApi = {
       const response = await apiClient.post('/auth/login', credentials);
       return response.data;
     } catch (error) {
+      if (!error.response && error.message === 'Network Error') {
+        throw new Error('Cannot reach the server. Check that the backend is running and the mobile API URL points to your computer.');
+      }
+
       // Enhanced error handling
       const message = error.response?.data?.message || 
                     error.message || 
@@ -46,6 +50,10 @@ export const authApi = {
       const response = await apiClient.post('/auth/register', userData);
       return response.data;
     } catch (error) {
+      if (!error.response && error.message === 'Network Error') {
+        throw new Error('Cannot reach the server. Check that the backend is running and the mobile API URL points to your computer.');
+      }
+
       // Enhanced error handling
       const message = error.response?.data?.message || 
                     error.message || 

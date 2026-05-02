@@ -7,7 +7,7 @@ const { callClaude } = require('../utils/aiHelper');
 // @access  Private/Admin
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find({}).select('-password');
+    const users = await User.find({ isActive: { $ne: false } }).select('-password');
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });

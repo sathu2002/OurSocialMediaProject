@@ -8,9 +8,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { userApi, clientApi, paymentApi, feedbackApi, taskApi, analyticsApi } from '../../api';
+import { userApi, clientApi, paymentApi, feedbackApi, taskApi } from '../../api';
 import { Card, Loading, EmptyState } from '../../components';
-import { colors, typography, spacing, commonStyles } from '../../styles/theme';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../../styles/theme';
 
 const DashboardScreen = () => {
   const { user, hasRole } = useAuth();
@@ -33,23 +33,22 @@ const DashboardScreen = () => {
 
       // Get total users (Admin only)
       if (hasRole(['Admin'])) {
-        promises.push(
-          userApi.getUsers().catch(() => ({ data: [] }))
-        );
+        promises.push(userApi.getUsers().catch(() => []));
       }
 
       // Get total clients (Admin, Manager)
       if (hasRole(['Admin', 'Manager'])) {
-        promises.push(
-          clientApi.getClients().catch(() => ({ data: [] }))
-        );
+        promises.push(clientApi.getClients().catch(() => []));
       }
 
       // Get payment stats for revenue and pending payments (Admin, Manager)
       if (hasRole(['Admin', 'Manager'])) {
         promises.push(
-          paymentApi.getPaymentStats().catch(() => ({ 
-            data: { totalRevenue: 0, pendingCount: 0, paidCount: 0, overdueCount: 0 } 
+          paymentApi.getPaymentStats().catch(() => ({
+            totalRevenue: 0,
+            pendingCount: 0,
+            paidCount: 0,
+            overdueCount: 0,
           }))
         );
       }
@@ -57,25 +56,17 @@ const DashboardScreen = () => {
       // Get recent feedback (Admin, Manager, Client)
       if (hasRole(['Admin', 'Manager', 'Client'])) {
         if (hasRole(['Client'])) {
-          promises.push(
-            feedbackApi.getMyFeedback().catch(() => ({ data: [] }))
-          );
+          promises.push(feedbackApi.getMyFeedback().catch(() => []));
         } else {
-          promises.push(
-            feedbackApi.getFeedback().catch(() => ({ data: [] }))
-          );
+          promises.push(feedbackApi.getFeedback().catch(() => []));
         }
       }
 
       // Get recent tasks (All roles)
       if (hasRole(['Admin', 'Manager'])) {
-        promises.push(
-          taskApi.getTasks().catch(() => ({ data: [] }))
-        );
+        promises.push(taskApi.getTasks().catch(() => []));
       } else {
-        promises.push(
-          taskApi.getMyTasks().catch(() => ({ data: [] }))
-        );
+        promises.push(taskApi.getMyTasks().catch(() => []));
       }
 
       const results = await Promise.allSettled(promises);
@@ -95,7 +86,7 @@ const DashboardScreen = () => {
       if (hasRole(['Admin'])) {
         const usersResult = results[resultIndex++];
         if (usersResult.status === 'fulfilled') {
-          newDashboardData.totalUsers = (usersResult.value.data || []).length;
+          newDashboardData.totalUsers = (usersResult.value || []).length;
         }
       }
 
@@ -103,12 +94,12 @@ const DashboardScreen = () => {
       if (hasRole(['Admin', 'Manager'])) {
         const clientsResult = results[resultIndex++];
         if (clientsResult.status === 'fulfilled') {
-          newDashboardData.totalClients = (clientsResult.value.data || []).length;
+          newDashboardData.totalClients = (clientsResult.value || []).length;
         }
 
         const paymentResult = results[resultIndex++];
         if (paymentResult.status === 'fulfilled') {
-          const paymentData = paymentResult.value.data || {};
+          const paymentData = paymentResult.value || {};
           newDashboardData.totalRevenue = paymentData.totalRevenue || 0;
           newDashboardData.pendingPayments = paymentData.pendingCount || 0;
         }
@@ -118,18 +109,18 @@ const DashboardScreen = () => {
       if (hasRole(['Admin', 'Manager', 'Client'])) {
         const feedbackResult = results[resultIndex++];
         if (feedbackResult.status === 'fulfilled') {
-          newDashboardData.recentFeedback = (feedbackResult.value.data || [])
-            .slice(0, 5)
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          newDashboardData.recentFeedback = [...(feedbackResult.value || [])]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 5);
         }
       }
 
       // Process tasks (All roles)
       const taskResult = results[resultIndex++];
       if (taskResult.status === 'fulfilled') {
-        newDashboardData.recentTasks = (taskResult.value.data || [])
-          .slice(0, 5)
-          .sort((a, b) => new Date(b.createdAt || b.dueDate) - new Date(a.createdAt || a.dueDate));
+        newDashboardData.recentTasks = [...(taskResult.value || [])]
+          .sort((a, b) => new Date(b.createdAt || b.dueDate) - new Date(a.createdAt || a.dueDate))
+          .slice(0, 5);
       }
 
       setDashboardData(newDashboardData);
@@ -386,7 +377,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.bold,
     color: colors.textWhite,
     marginBottom: spacing.sm,
-    lineHeight: typography.lineHeight.tight,
   },
   roleContainer: {
     flexDirection: 'row',
@@ -444,12 +434,12 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.bold,
     color: colors.primary,
     marginBottom: spacing.xs,
-    lineHeight: typography.lineHeight.tight,
   },
   metricLabel: {
     fontSize: typography.fontSizes.sm,
     color: colors.textSecondary,
     fontWeight: typography.fontWeights.medium,
+    paddingRight: 40,
   },
   metricIcon: {
     position: 'absolute',
@@ -480,7 +470,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.md,
-    lineHeight: typography.lineHeight.tight,
   },
   recentItem: {
     padding: spacing.md,
@@ -502,7 +491,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
     marginRight: spacing.sm,
-    lineHeight: typography.lineHeight.tight,
   },
   recentItemStatus: {
     fontSize: typography.fontSizes.sm,
@@ -526,7 +514,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     color: colors.textSecondary,
     marginTop: spacing.xs,
-    lineHeight: typography.lineHeight.normal,
   },
 });
 

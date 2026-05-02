@@ -109,10 +109,10 @@ const FeedbackScreen = () => {
         response = await feedbackApi.getFeedback();
       }
 
-      setFeedback(response.data || []);
+      setFeedback(response || []);
     } catch (error) {
       console.log('Fetch feedback error:', error);
-      setError(error.response?.data?.message || 'Failed to load feedback');
+      setError(error.message || 'Failed to load feedback');
     }
   };
 
@@ -120,7 +120,7 @@ const FeedbackScreen = () => {
     if (!hasRole(['Admin', 'Manager'])) return;
     try {
       const response = await clientApi.getClients();
-      setClients(response.data || []);
+      setClients(response || []);
     } catch (error) {
       console.log('Fetch clients error:', error);
     }

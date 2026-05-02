@@ -154,29 +154,24 @@ export const commonStyles = {
     fontWeight: typography.fontWeights.bold,
     color: colors.textWhite,
     marginBottom: spacing.sm,
-    lineHeight: typography.lineHeight.tight,
   },
   subtitle: {
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.medium,
     color: colors.gray300,
     marginBottom: spacing.md,
-    lineHeight: typography.lineHeight.normal,
   },
   text: {
     fontSize: typography.fontSizes.md,
     color: colors.textPrimary,
-    lineHeight: typography.lineHeight.normal,
   },
   textWhite: {
     fontSize: typography.fontSizes.md,
     color: colors.textWhite,
-    lineHeight: typography.lineHeight.normal,
   },
   textMuted: {
     fontSize: typography.fontSizes.sm,
     color: colors.textSecondary,
-    lineHeight: typography.lineHeight.normal,
   },
   sectionTitle: {
     fontSize: typography.fontSizes.lg,

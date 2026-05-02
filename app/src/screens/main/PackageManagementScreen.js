@@ -11,9 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { clientApi, packageApi } from '../../api';
-import { Card, Button, Input, Loading, EmptyState } from '../../components';
-import { colors, typography, spacing, commonStyles } from '../../styles/theme';
+import { packageApi } from '../../api';
+import { Card, Button, Loading, EmptyState } from '../../components';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../../styles/theme';
 
 const PackageManagementScreen = () => {
   const { hasRole } = useAuth();
@@ -63,6 +63,10 @@ const PackageManagementScreen = () => {
     return packageApi.getPackageDetails(packageName);
   };
 
+  const getStatusLabel = (status) => (status === 'inactive' ? 'Inactive' : 'Active');
+  const getPackageTextColor = (packageName) =>
+    packageName === 'Gold' ? colors.navy : colors.white;
+
   const handleUpdatePackage = async () => {
     if (!selectedClient) return;
 
@@ -104,7 +108,7 @@ const PackageManagementScreen = () => {
     setError('');
   };
 
-  const renderPackageCard = (packageInfo) => {
+  const renderPackageCard = () => {
     const availablePackages = packageApi.getAvailablePackages();
     
     return (
@@ -136,9 +140,7 @@ const PackageManagementScreen = () => {
               </View>
               <View style={styles.packageFeatures}>
                 {pkgDetails.features.slice(0, 3).map((feature, index) => (
-                  <Text key={index} style={styles.packageFeature}>
-                    • {feature}
-                  </Text>
+                  <Text key={index} style={styles.packageFeature}>{`- ${feature}`}</Text>
                 ))}
                 {pkgDetails.features.length > 3 && (
                   <Text style={styles.packageFeatureMore}>
@@ -157,7 +159,7 @@ const PackageManagementScreen = () => {
     const packageDetails = client.package ? getPackageDetails(client.package) : null;
     
     return (
-      <Card style={styles.clientCard}>
+      <Card key={client._id} style={styles.clientCard}>
         <View style={styles.clientHeader}>
           <View style={styles.clientInfo}>
             <Text style={styles.clientName}>{client.name}</Text>
@@ -169,9 +171,9 @@ const PackageManagementScreen = () => {
           <View style={styles.clientStatus}>
             <Text style={[
               styles.statusText,
-              { color: client.status === 'Active' ? colors.success : colors.gray400 }
+              { color: client.status === 'active' ? colors.success : colors.gray400 }
             ]}>
-              {client.status}
+              {getStatusLabel(client.status)}
             </Text>
           </View>
         </View>
@@ -179,21 +181,30 @@ const PackageManagementScreen = () => {
         <View style={styles.packageInfo}>
           {client.package ? (
             <View style={styles.currentPackage}>
-              <Text style={styles.currentPackageLabel}>Current Package:</Text>
-              <View style={[
-                styles.packageBadge,
-                { backgroundColor: getPackageColor(client.package) }
-              ]}>
-                <Text style={styles.packageBadgeText}>{client.package}</Text>
+              <View style={styles.currentPackageTopRow}>
+                <Text style={styles.currentPackageLabel}>Current Package</Text>
+                <View style={[
+                  styles.packageBadge,
+                  { backgroundColor: getPackageColor(client.package) }
+                ]}>
+                  <Text
+                    style={[
+                      styles.packageBadgeText,
+                      { color: getPackageTextColor(client.package) },
+                    ]}
+                  >
+                    {client.package}
+                  </Text>
+                </View>
               </View>
               {packageDetails && (
-                <Text style={styles.packagePrice}>
+                <Text style={styles.currentPackagePrice}>
                   ${packageDetails.price}/{packageDetails.duration}
                 </Text>
               )}
               {client.packageAssignedAt && (
                 <Text style={styles.packageAssignedDate}>
-                  Assigned: {new Date(client.packageAssignedAt).toLocaleDateString()}
+                  Assigned on {new Date(client.packageAssignedAt).toLocaleDateString()}
                 </Text>
               )}
             </View>
@@ -265,19 +276,22 @@ const PackageManagementScreen = () => {
         </Card>
 
         {/* Clients List */}
-        <Card style={styles.clientsCard}>
-          <Text style={styles.cardTitle}>
-            Clients ({clients.length})
+        <View style={styles.clientsSection}>
+          <Text style={styles.sectionTitle}>Client Packages</Text>
+          <Text style={styles.sectionSubtitle}>
+            {clients.length} client{clients.length === 1 ? '' : 's'} with package data
           </Text>
           {clients.length === 0 ? (
-            <EmptyState
-              title="No clients found"
-              message="No clients have been added to the system yet."
-            />
+            <Card style={styles.emptyCard}>
+              <EmptyState
+                title="No clients found"
+                message="No clients have been added to the system yet."
+              />
+            </Card>
           ) : (
             clients.map((client) => renderClientItem(client))
           )}
-        </Card>
+        </View>
       </ScrollView>
 
       {/* Package Update Modal */}
@@ -292,7 +306,7 @@ const PackageManagementScreen = () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Update Package</Text>
               <TouchableOpacity onPress={closeModal}>
-                <Text style={styles.modalClose}>×</Text>
+                <Text style={styles.modalClose}>X</Text>
               </TouchableOpacity>
             </View>
 
@@ -366,6 +380,8 @@ const styles = StyleSheet.create({
   },
   overviewCard: {
     marginBottom: spacing.md,
+    backgroundColor: colors.navyLight,
+    borderColor: colors.gray700,
   },
   cardTitle: {
     fontSize: typography.fontSizes.lg,
@@ -379,9 +395,12 @@ const styles = StyleSheet.create({
   overviewItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.sm,
-    backgroundColor: colors.navyLight,
-    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.navy,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.gray700,
   },
   overviewDot: {
     width: 12,
@@ -401,11 +420,28 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     color: colors.gray300,
   },
-  clientsCard: {
+  clientsSection: {
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSizes.xl,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.white,
+    marginBottom: spacing.xs,
+  },
+  sectionSubtitle: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.gray300,
+    marginBottom: spacing.md,
+  },
+  emptyCard: {
     marginBottom: spacing.md,
   },
   clientCard: {
     marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.navyLight,
+    borderColor: colors.gray700,
   },
   clientHeader: {
     flexDirection: 'row',
@@ -437,35 +473,46 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: typography.fontSizes.sm,
     fontWeight: typography.fontWeights.semibold,
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
   },
   packageInfo: {
     marginBottom: spacing.md,
   },
   currentPackage: {
     padding: spacing.md,
-    backgroundColor: colors.navyLight,
-    borderRadius: borderRadius.md,
+    backgroundColor: colors.navy,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.gray700,
+  },
+  currentPackageTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   currentPackageLabel: {
     fontSize: typography.fontSizes.sm,
     color: colors.gray300,
-    marginBottom: spacing.sm,
   },
   packageBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    marginBottom: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
   },
   packageBadgeText: {
     fontSize: typography.fontSizes.sm,
     fontWeight: typography.fontWeights.bold,
     color: colors.white,
   },
-  packagePrice: {
+  currentPackagePrice: {
     fontSize: typography.fontSizes.md,
     color: colors.primary,
+    fontWeight: typography.fontWeights.bold,
     marginBottom: spacing.xs,
   },
   packageAssignedDate: {
@@ -474,19 +521,26 @@ const styles = StyleSheet.create({
   },
   noPackage: {
     padding: spacing.md,
-    backgroundColor: 'rgba(156, 163, 175, 0.1)',
-    borderRadius: borderRadius.md,
+    backgroundColor: colors.navy,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.gray700,
     alignItems: 'center',
   },
   noPackageText: {
     fontSize: typography.fontSizes.md,
-    color: colors.gray400,
+    color: colors.gray300,
   },
   updateButton: {
     backgroundColor: colors.primary,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 4,
   },
   updateButtonText: {
     fontSize: typography.fontSizes.md,
@@ -556,11 +610,13 @@ const styles = StyleSheet.create({
   packageCard: {
     padding: spacing.md,
     backgroundColor: colors.navyLight,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.lg,
     borderLeftWidth: 4,
   },
   selectedPackageCard: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    backgroundColor: colors.navy,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
   packageHeader: {
     flexDirection: 'row',

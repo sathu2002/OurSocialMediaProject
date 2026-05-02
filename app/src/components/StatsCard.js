@@ -4,8 +4,8 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import { Card } from './Card';
-import { colors, typography, spacing, borderRadius } from '../styles/theme';
+import Card from './Card';
+import { colors, typography, spacing } from '../styles/theme';
 
 const StatsCard = ({
   title,
@@ -17,20 +17,18 @@ const StatsCard = ({
   style,
 }) => {
   return (
-    <TouchableOpacity onPress={onPress} disabled={!onPress}>
-      <Card style={[styles.container, style]}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-          {icon && <Text style={styles.icon}>{icon}</Text>}
-        </View>
-        <Text style={[styles.value, { color }]}>
-          {value}
-        </Text>
-        {subtitle && (
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        )}
-      </Card>
-    </TouchableOpacity>
+    <Card onPress={onPress} style={[styles.container, style]}>
+      <View style={styles.header}>
+        <Text style={styles.title}>{title}</Text>
+        {icon && <Text style={styles.icon}>{icon}</Text>}
+      </View>
+      <Text style={[styles.value, { color }]}>
+        {value}
+      </Text>
+      {subtitle && (
+        <Text style={styles.subtitle}>{subtitle}</Text>
+      )}
+    </Card>
   );
 };
 

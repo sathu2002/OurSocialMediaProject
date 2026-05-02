@@ -2,12 +2,83 @@ const Feedback = require('../models/Feedback');
 const Client = require('../models/Client');
 const { callClaude } = require('../utils/aiHelper');
 
-// @desc    Get all feedback
+const FEEDBACK_POPULATE = { path: 'clientId', select: 'name company email' };
+
+const analyzeFeedback = async (comment, fallbackSentiment = 'neutral') => {
+  let sentiment = fallbackSentiment;
+  let aiSuggestion = '';
+
+  if (!comment) {
+    return { sentiment, aiSuggestion };
+  }
+
+  try {
+    const prompt = `Analyze this feedback: "${comment}". Return exactly one word for sentiment: "positive", "neutral", or "negative", followed by "|" and a brief improvement suggestion.`;
+    const aiResponse = await callClaude(prompt);
+    const [sentimentResult, suggestion] = aiResponse.split('|').map((part) => part.trim());
+    const cleanSentiment = sentimentResult.toLowerCase().replace(/[^a-z]/g, '');
+
+    if (['positive', 'neutral', 'negative'].includes(cleanSentiment)) {
+      sentiment = cleanSentiment;
+    }
+
+    if (suggestion) {
+      aiSuggestion = suggestion;
+    }
+  } catch (error) {
+    console.error('AI feedback analysis failed', error);
+  }
+
+  return { sentiment, aiSuggestion };
+};
+
+const resolveTargetClient = async (req, requestedClientId) => {
+  if (req.user.role === 'Client') {
+    const ownClient = await Client.findOne({ userId: req.user.id });
+
+    if (!ownClient) {
+      return { error: 'Client profile not found', status: 404 };
+    }
+
+    if (requestedClientId && requestedClientId !== ownClient._id.toString()) {
+      return { error: 'Clients can only manage their own feedback', status: 403 };
+    }
+
+    return { client: ownClient };
+  }
+
+  if (!requestedClientId) {
+    return { error: 'Client selection is required', status: 400 };
+  }
+
+  const selectedClient = await Client.findById(requestedClientId);
+  if (!selectedClient) {
+    return { error: 'Client not found', status: 404 };
+  }
+
+  return { client: selectedClient };
+};
+
+// @desc    Get all feedback or own feedback for clients
 // @route   GET /api/feedback
-// @access  Private/Admin/Manager
+// @access  Private/Admin/Manager/Staff/Client
 const getFeedback = async (req, res) => {
   try {
-    const feedbacks = await Feedback.find().populate('clientId', 'name company');
+    let query = {};
+
+    if (req.user.role === 'Client') {
+      const ownClient = await Client.findOne({ userId: req.user.id });
+      if (!ownClient) {
+        return res.status(404).json({ message: 'Client profile not found' });
+      }
+
+      query.clientId = ownClient._id;
+    }
+
+    const feedbacks = await Feedback.find(query)
+      .populate(FEEDBACK_POPULATE)
+      .sort({ createdAt: -1 });
+
     res.json(feedbacks);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -20,12 +91,15 @@ const getFeedback = async (req, res) => {
 const getMyFeedback = async (req, res) => {
   try {
     const client = await Client.findOne({ userId: req.user.id });
-    
+
     if (!client) {
-        return res.status(404).json({ message: 'Client profile not found' });
+      return res.status(404).json({ message: 'Client profile not found' });
     }
 
-    const feedbacks = await Feedback.find({ clientId: client._id });
+    const feedbacks = await Feedback.find({ clientId: client._id })
+      .populate(FEEDBACK_POPULATE)
+      .sort({ createdAt: -1 });
+
     res.json(feedbacks);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -34,53 +108,33 @@ const getMyFeedback = async (req, res) => {
 
 // @desc    Submit feedback
 // @route   POST /api/feedback
-// @access  Private/Client
+// @access  Private/Admin/Manager/Staff/Client
 const createFeedback = async (req, res) => {
   try {
-    const { campaignName, rating, comment } = req.body;
+    const { campaignName, rating, comment, clientId } = req.body;
 
     if (!campaignName || !rating) {
       return res.status(400).json({ message: 'Campaign name and rating are required' });
     }
 
-    const client = await Client.findOne({ userId: req.user.id });
-    
-    if (!client) {
-        return res.status(404).json({ message: 'Client profile not found' });
+    const resolvedClient = await resolveTargetClient(req, clientId);
+    if (resolvedClient.error) {
+      return res.status(resolvedClient.status).json({ message: resolvedClient.error });
     }
 
-    // AI Logic: Auto-calculate sentiment
-    let autoSentiment = 'neutral';
-    let aiImprovementSuggestion = '';
-
-    if (comment) {
-        try {
-            const prompt = `Analyze this client feedback: "${comment}". Based on the text, return exactly one word describing the sentiment: "positive", "neutral", or "negative". Then, add a pipe character "|" followed by a brief, helpful suggestion on how to respond or improve based on the feedback. Example format: positive | Thank the client for their positive response and ask if they'd like to scale the campaign.`;
-            
-            const aiResponse = await callClaude(prompt);
-            const [sentimentResult, suggestion] = aiResponse.split('|').map(s => s.trim());
-            
-            const cleanSentiment = sentimentResult.toLowerCase().replace(/[^a-z]/g, '');
-            if (['positive', 'neutral', 'negative'].includes(cleanSentiment)) {
-                autoSentiment = cleanSentiment;
-            }
-            if(suggestion) aiImprovementSuggestion = suggestion;
-            
-        } catch (aiError) {
-             console.error("AI Feedback Analysis failed", aiError);
-        }
-    }
+    const { sentiment, aiSuggestion } = await analyzeFeedback(comment, req.body.sentiment || 'neutral');
 
     const feedback = await Feedback.create({
-      clientId: client._id,
-      campaignName,
+      clientId: resolvedClient.client._id,
+      campaignName: campaignName.trim(),
       rating,
-      comment,
-      sentiment: autoSentiment,
-      aiSuggestion: aiImprovementSuggestion
+      comment: comment?.trim() || '',
+      sentiment,
+      aiSuggestion,
     });
 
-    res.status(201).json(feedback);
+    const populatedFeedback = await Feedback.findById(feedback._id).populate(FEEDBACK_POPULATE);
+    res.status(201).json(populatedFeedback);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -88,7 +142,7 @@ const createFeedback = async (req, res) => {
 
 // @desc    Update feedback
 // @route   PUT /api/feedback/:id
-// @access  Private/Client (only own, under 24 hr)
+// @access  Private/Admin/Manager/Staff/Client
 const updateFeedback = async (req, res) => {
   try {
     const feedback = await Feedback.findById(req.params.id);
@@ -97,45 +151,28 @@ const updateFeedback = async (req, res) => {
       return res.status(404).json({ message: 'Feedback not found' });
     }
 
-    const client = await Client.findOne({ userId: req.user.id });
-    
-    if (!client || feedback.clientId.toString() !== client._id.toString()) {
-         return res.status(403).json({ message: 'Not authorized to edit this feedback' });
+    const resolvedClient = await resolveTargetClient(req, req.body.clientId || feedback.clientId.toString());
+    if (resolvedClient.error) {
+      return res.status(resolvedClient.status).json({ message: resolvedClient.error });
     }
 
-    // Check if 24 hours have passed
-    const hoursSinceCreation = Math.abs(new Date() - feedback.createdAt) / 36e5;
-    if (hoursSinceCreation > 24) {
-         return res.status(400).json({ message: 'Feedback can only be edited within 24 hours of creation' });
-    }
-
-    feedback.campaignName = req.body.campaignName || feedback.campaignName;
+    feedback.clientId = resolvedClient.client._id;
+    feedback.campaignName = req.body.campaignName?.trim() || feedback.campaignName;
     feedback.rating = req.body.rating || feedback.rating;
-    
-    let needsReanalysis = false;
-    if (req.body.comment && req.body.comment !== feedback.comment) {
-        feedback.comment = req.body.comment;
-        needsReanalysis = true;
-    }
+    feedback.comment = req.body.comment?.trim() ?? feedback.comment;
 
-    // Re-run AI analysis if comment changed
-    if (needsReanalysis) {
-        try {
-            const prompt = `Analyze this updated client feedback: "${feedback.comment}". Return exactly one word describing the sentiment: "positive", "neutral", or "negative", followed by a pipe character "|" and a brief improvement suggestion.`;
-            const aiResponse = await callClaude(prompt);
-            const [sentimentResult, suggestion] = aiResponse.split('|').map(s => s.trim());
-            
-            const cleanSentiment = sentimentResult.toLowerCase().replace(/[^a-z]/g, '');
-            if (['positive', 'neutral', 'negative'].includes(cleanSentiment)) {
-                feedback.sentiment = cleanSentiment;
-            }
-            if(suggestion) feedback.aiSuggestion = suggestion;
-        } catch(e) { console.error("AI logic failed on update", e); }
-    }
+    const { sentiment, aiSuggestion } = await analyzeFeedback(
+      feedback.comment,
+      req.body.sentiment || feedback.sentiment || 'neutral'
+    );
 
+    feedback.sentiment = sentiment;
+    feedback.aiSuggestion = aiSuggestion || feedback.aiSuggestion;
     feedback.updatedAt = new Date();
+
     const updatedFeedback = await feedback.save();
-    res.json(updatedFeedback);
+    const populatedFeedback = await Feedback.findById(updatedFeedback._id).populate(FEEDBACK_POPULATE);
+    res.json(populatedFeedback);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -143,7 +180,7 @@ const updateFeedback = async (req, res) => {
 
 // @desc    Delete feedback
 // @route   DELETE /api/feedback/:id
-// @access  Private/Admin or Client owner
+// @access  Private/Admin/Manager/Staff/Client
 const deleteFeedback = async (req, res) => {
   try {
     const feedback = await Feedback.findById(req.params.id);
@@ -153,12 +190,10 @@ const deleteFeedback = async (req, res) => {
     }
 
     if (req.user.role === 'Client') {
-        const client = await Client.findOne({ userId: req.user.id });
-        if (!client || feedback.clientId.toString() !== client._id.toString()) {
-            return res.status(403).json({ message: 'Not authorized to delete this feedback' });
-        }
-    } else if (req.user.role !== 'Admin') {
-         return res.status(403).json({ message: 'Not authorized to delete this feedback' });
+      const ownClient = await Client.findOne({ userId: req.user.id });
+      if (!ownClient || feedback.clientId.toString() !== ownClient._id.toString()) {
+        return res.status(403).json({ message: 'Not authorized to delete this feedback' });
+      }
     }
 
     await Feedback.deleteOne({ _id: req.params.id });

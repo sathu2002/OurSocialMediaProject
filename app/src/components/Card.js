@@ -79,12 +79,10 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
-    lineHeight: typography.lineHeight.tight,
   },
   subtitle: {
     fontSize: typography.fontSizes.sm,
     color: colors.textSecondary,
-    lineHeight: typography.lineHeight.normal,
   },
   content: {
     // Content styles

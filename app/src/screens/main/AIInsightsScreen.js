@@ -13,8 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { feedbackApi } from '../../api';
 import { Card, Loading, EmptyState } from '../../components';
-import StatsCard from '../../components/StatsCard';
 import FeedbackCard from '../../components/FeedbackCard';
+import StatsCard from '../../components/StatsCard';
 import { colors, typography, spacing, commonStyles } from '../../styles/theme';
 
 const { width } = Dimensions.get('window');
@@ -41,7 +41,7 @@ const AIInsightsScreen = () => {
       setFeedback(response || []);
     } catch (error) {
       console.log('Fetch feedback error:', error);
-      setError(error.response?.data?.message || 'Failed to load feedback');
+      setError(error.message || 'Failed to load feedback');
     }
   };
 
@@ -204,7 +204,7 @@ const AIInsightsScreen = () => {
             Total Feedback: <Text style={styles.totalCount}>{stats.total}</Text>
           </Text>
           <Text style={styles.averageRating}>
-            Average Rating: <Text style={styles.ratingValue}>{averageRating} ⭐</Text>
+            Average Rating: <Text style={styles.ratingValue}>{averageRating} / 5</Text>
           </Text>
         </Card>
 
@@ -215,7 +215,7 @@ const AIInsightsScreen = () => {
             value={stats.positive}
             subtitle={`${percentages.positive}%`}
             color={colors.success}
-            icon="😊"
+            icon="P"
             onPress={() => setSelectedSentiment(selectedSentiment === 'positive' ? null : 'positive')}
           />
           <StatsCard
@@ -223,7 +223,7 @@ const AIInsightsScreen = () => {
             value={stats.neutral}
             subtitle={`${percentages.neutral}%`}
             color={colors.warning}
-            icon="😐"
+            icon="N"
             onPress={() => setSelectedSentiment(selectedSentiment === 'neutral' ? null : 'neutral')}
           />
           <StatsCard
@@ -231,7 +231,7 @@ const AIInsightsScreen = () => {
             value={stats.negative}
             subtitle={`${percentages.negative}%`}
             color={colors.error}
-            icon="😞"
+            icon="X"
             onPress={() => setSelectedSentiment(selectedSentiment === 'negative' ? null : 'negative')}
           />
         </View>
@@ -282,16 +282,16 @@ const AIInsightsScreen = () => {
             Based on {stats.total} feedback entries:
           </Text>
           <Text style={styles.analysisText}>
-            • {percentages.positive}% of clients are satisfied (Positive)
+            - {percentages.positive}% of clients are satisfied (Positive)
           </Text>
           <Text style={styles.analysisText}>
-            • {percentages.negative}% of clients need attention (Negative)
+            - {percentages.negative}% of clients need attention (Negative)
           </Text>
           <Text style={styles.analysisText}>
-            • {percentages.neutral}% are neutral responses
+            - {percentages.neutral}% are neutral responses
           </Text>
           <Text style={styles.analysisText}>
-            • Average rating: {averageRating} out of 5
+            - Average rating: {averageRating} out of 5
           </Text>
           <Text style={styles.analysisHint}>
             Tap on any stat card above to filter feedback by sentiment.

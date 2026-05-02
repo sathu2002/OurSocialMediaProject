@@ -1,5 +1,7 @@
 import apiClient from './axiosConfig';
 
+const successResponse = (data) => ({ success: true, data });
+
 /**
  * Analytics API Service
  * Admin/Manager access for campaign analytics with proper error handling
@@ -86,13 +88,13 @@ export const analyticsApi = {
   
   /**
    * Create analytics record (Admin/Manager)
-   * @param {Object} data - { clientId, campaignName, reach, impressions, clicks, conversions, spend, month }
+   * @param {Object} data - { clientId, campaignName, reportMonth, reach, impressions, engagement, clicks, conversions, platform, startDate, endDate }
    * @returns {Promise} - Created analytics record
    */
   createAnalytics: async (data) => {
     try {
       // Validate input
-      const requiredFields = ['clientId', 'campaignName', 'month'];
+      const requiredFields = ['clientId', 'campaignName', 'reportMonth'];
       const missingFields = requiredFields.filter(field => !data[field]);
       
       if (missingFields.length > 0) {
@@ -100,12 +102,12 @@ export const analyticsApi = {
       }
 
       // Validate month format
-      if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(data.month)) {
+      if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(data.reportMonth)) {
         throw new Error('Invalid month format. Use YYYY-MM');
       }
 
       // Validate numeric fields if provided
-      const numericFields = ['reach', 'impressions', 'clicks', 'conversions', 'spend'];
+      const numericFields = ['reach', 'impressions', 'engagement', 'clicks', 'conversions'];
       for (const field of numericFields) {
         if (data[field] !== undefined) {
           const value = parseFloat(data[field]);
@@ -117,7 +119,7 @@ export const analyticsApi = {
       }
 
       const response = await apiClient.post('/analytics', data);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -143,14 +145,14 @@ export const analyticsApi = {
       }
 
       // Validate month if provided
-      if (data.month) {
-        if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(data.month)) {
+      if (data.reportMonth) {
+        if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(data.reportMonth)) {
           throw new Error('Invalid month format. Use YYYY-MM');
         }
       }
 
       // Validate numeric fields if provided
-      const numericFields = ['reach', 'impressions', 'clicks', 'conversions', 'spend'];
+      const numericFields = ['reach', 'impressions', 'engagement', 'clicks', 'conversions'];
       for (const field of numericFields) {
         if (data[field] !== undefined) {
           const value = parseFloat(data[field]);
@@ -162,7 +164,7 @@ export const analyticsApi = {
       }
 
       const response = await apiClient.put(`/analytics/${id}`, data);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -183,7 +185,7 @@ export const analyticsApi = {
       }
       
       const response = await apiClient.delete(`/analytics/${id}`);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -198,7 +200,7 @@ export const analyticsApi = {
    */
   getCampaigns: async () => {
     try {
-      const response = await apiClient.get('/campaigns');
+      const response = await apiClient.get('/analytics');
       return response.data;
     } catch (error) {
       const message = error.response?.data?.message || 
@@ -219,8 +221,7 @@ export const analyticsApi = {
         throw new Error('Campaign data is required');
       }
 
-      const response = await apiClient.post('/campaigns', campaignData);
-      return response.data;
+      return analyticsApi.createAnalytics(campaignData);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -245,8 +246,7 @@ export const analyticsApi = {
         throw new Error('Campaign data is required');
       }
 
-      const response = await apiClient.put(`/campaigns/${id}`, campaignData);
-      return response.data;
+      return analyticsApi.updateAnalytics(id, campaignData);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -266,8 +266,7 @@ export const analyticsApi = {
         throw new Error('Campaign ID is required');
       }
       
-      const response = await apiClient.delete(`/campaigns/${id}`);
-      return response.data;
+      return analyticsApi.deleteAnalytics(id);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 

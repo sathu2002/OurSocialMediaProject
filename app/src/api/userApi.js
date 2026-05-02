@@ -1,5 +1,7 @@
 import apiClient from './axiosConfig';
 
+const successResponse = (data) => ({ success: true, data });
+
 /**
  * User Management API Service
  * Admin only access for most operations with proper error handling
@@ -63,7 +65,7 @@ export const userApi = {
       }
 
       const response = await apiClient.post('/users', userData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -89,7 +91,7 @@ export const userApi = {
       }
 
       const response = await apiClient.put(`/users/${id}`, userData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -110,7 +112,7 @@ export const userApi = {
       }
       
       const response = await apiClient.delete(`/users/${id}`);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 

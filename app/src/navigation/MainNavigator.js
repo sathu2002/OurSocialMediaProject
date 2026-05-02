@@ -1,11 +1,11 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Text, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { colors, typography } from '../styles/theme';
+import { colors } from '../styles/theme';
 
-// Main Tab Screens
 import DashboardScreen from '../screens/main/DashboardScreen';
 import UsersScreen from '../screens/main/UsersScreen';
 import ClientsScreen from '../screens/main/ClientsScreen';
@@ -21,190 +21,193 @@ import ProfileScreen from '../screens/main/ProfileScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Simple icon component
-const TabIcon = ({ label, focused }) => (
-  <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
-    <Text style={[styles.iconText, focused && styles.iconTextActive]}>
-      {label.charAt(0)}
-    </Text>
-  </View>
-);
+const iconMap = {
+  Dashboard: { outline: 'grid-outline', filled: 'grid' },
+  Users: { outline: 'people-outline', filled: 'people' },
+  Clients: { outline: 'briefcase-outline', filled: 'briefcase' },
+  Packages: { outline: 'cube-outline', filled: 'cube' },
+  Tasks: { outline: 'checkmark-done-outline', filled: 'checkmark-done' },
+  TaskCalendar: { outline: 'calendar-outline', filled: 'calendar' },
+  Analytics: { outline: 'bar-chart-outline', filled: 'bar-chart' },
+  Payments: { outline: 'card-outline', filled: 'card' },
+  Feedback: { outline: 'chatbubbles-outline', filled: 'chatbubbles' },
+  'AI Insights': { outline: 'sparkles-outline', filled: 'sparkles' },
+  Profile: { outline: 'person-outline', filled: 'person' },
+};
+
+const TabIcon = ({ routeName, focused, color }) => {
+  const icon = iconMap[routeName];
+
+  return (
+    <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
+      <Ionicons
+        name={focused ? icon.filled : icon.outline}
+        size={18}
+        color={color}
+      />
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.gray700,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconContainerActive: {
-    backgroundColor: colors.primary,
-  },
-  iconText: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.bold,
-    color: colors.gray400,
-  },
-  iconTextActive: {
-    color: colors.white,
-  },
-  tabBarLabel: {
-    fontSize: typography.fontSizes.xs,
-    color: colors.gray400,
-  },
-  tabBarLabelActive: {
-    color: colors.primary,
+    backgroundColor: 'rgba(59, 130, 246, 0.14)',
   },
 });
 
-// Tab Navigator based on user role
 const MainTabNavigator = () => {
-  const { user, hasRole } = useAuth();
-
-  const getTabBarLabel = (label, focused) => (
-    <Text style={[styles.tabBarLabel, focused && styles.tabBarLabelActive]}>
-      {label}
-    </Text>
-  );
+  const { hasRole } = useAuth();
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           backgroundColor: colors.navy,
-          borderTopWidth: 0,
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(148, 163, 184, 0.14)',
           paddingBottom: 8,
           paddingTop: 8,
-          height: 70,
+          height: 64,
         },
-        tabBarActiveTintColor: colors.primary,
+        tabBarShowLabel: false,
+        tabBarItemStyle: {
+          paddingHorizontal: 0,
+        },
+        tabBarActiveTintColor: colors.primaryLight,
         tabBarInactiveTintColor: colors.gray400,
       }}
     >
-      {/* Dashboard - Available to all roles */}
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="D" focused={focused} />,
-          tabBarLabel: ({ focused }) => getTabBarLabel('Dashboard', focused),
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon routeName="Dashboard" focused={focused} color={color} />
+          ),
         }}
       />
 
-      {/* Users - Admin only */}
       {hasRole(['Admin']) && (
         <Tab.Screen
           name="Users"
           component={UsersScreen}
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="U" focused={focused} />,
-            tabBarLabel: ({ focused }) => getTabBarLabel('Users', focused),
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon routeName="Users" focused={focused} color={color} />
+            ),
           }}
         />
       )}
 
-      {/* Clients - Admin, Manager */}
       {hasRole(['Admin', 'Manager']) && (
         <Tab.Screen
           name="Clients"
           component={ClientsScreen}
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="C" focused={focused} />,
-            tabBarLabel: ({ focused }) => getTabBarLabel('Clients', focused),
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon routeName="Clients" focused={focused} color={color} />
+            ),
           }}
         />
       )}
 
-      {/* Packages - Admin, Manager */}
       {hasRole(['Admin', 'Manager']) && (
         <Tab.Screen
           name="Packages"
           component={PackageManagementScreen}
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="P" focused={focused} />,
-            tabBarLabel: ({ focused }) => getTabBarLabel('Packages', focused),
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon routeName="Packages" focused={focused} color={color} />
+            ),
           }}
         />
       )}
 
-      {/* Tasks - All roles */}
       <Tab.Screen
         name="Tasks"
         component={TasksScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="T" focused={focused} />,
-          tabBarLabel: ({ focused }) => getTabBarLabel('Tasks', focused),
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon routeName="Tasks" focused={focused} color={color} />
+          ),
         }}
       />
 
-      {/* Task Calendar - All roles */}
       <Tab.Screen
         name="TaskCalendar"
         component={TaskCalendarScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="C" focused={focused} />,
-          tabBarLabel: ({ focused }) => getTabBarLabel('Calendar', focused),
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon routeName="TaskCalendar" focused={focused} color={color} />
+          ),
         }}
       />
 
-      {/* Analytics - Admin, Manager */}
       {hasRole(['Admin', 'Manager']) && (
         <Tab.Screen
           name="Analytics"
           component={AnalyticsScreen}
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="A" focused={focused} />,
-            tabBarLabel: ({ focused }) => getTabBarLabel('Analytics', focused),
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon routeName="Analytics" focused={focused} color={color} />
+            ),
           }}
         />
       )}
 
-      {/* Payments - Admin, Manager */}
       {hasRole(['Admin', 'Manager']) && (
         <Tab.Screen
           name="Payments"
           component={PaymentsScreen}
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="$" focused={focused} />,
-            tabBarLabel: ({ focused }) => getTabBarLabel('Payments', focused),
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon routeName="Payments" focused={focused} color={color} />
+            ),
           }}
         />
       )}
 
-      {/* Feedback - Admin, Manager, Client */}
-      {hasRole(['Admin', 'Manager', 'Client']) && (
+      {hasRole(['Admin', 'Manager', 'Staff', 'Client']) && (
         <Tab.Screen
           name="Feedback"
           component={FeedbackHistoryScreen}
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="F" focused={focused} />,
-            tabBarLabel: ({ focused }) => getTabBarLabel('Feedback', focused),
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon routeName="Feedback" focused={focused} color={color} />
+            ),
           }}
         />
       )}
 
-      {/* AI Insights - Admin, Manager */}
       {hasRole(['Admin', 'Manager']) && (
         <Tab.Screen
           name="AI Insights"
           component={AIInsightsScreen}
           options={{
-            tabBarIcon: ({ focused }) => <TabIcon label="AI" focused={focused} />,
-            tabBarLabel: ({ focused }) => getTabBarLabel('AI', focused),
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon routeName="AI Insights" focused={focused} color={color} />
+            ),
           }}
         />
       )}
 
-      {/* Profile - Available to all */}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="Me" focused={focused} />,
-          tabBarLabel: ({ focused }) => getTabBarLabel('Profile', focused),
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon routeName="Profile" focused={focused} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>

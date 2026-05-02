@@ -7,9 +7,8 @@ import {
   RefreshControl,
   Alert,
   Modal,
-  TextInput,
   TouchableOpacity,
-  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -17,10 +16,12 @@ import { feedbackApi, clientApi } from '../../api';
 import { Card, Button, Input, Loading, EmptyState } from '../../components';
 import FeedbackCard from '../../components/FeedbackCard';
 import FilterTabs from '../../components/FilterTabs';
-import { colors, typography, spacing, commonStyles } from '../../styles/theme';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../../styles/theme';
 
 const FeedbackHistoryScreen = () => {
   const { hasRole } = useAuth();
+  const canManageAllFeedback = hasRole(['Admin', 'Manager', 'Staff']);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [feedback, setFeedback] = useState([]);
@@ -36,16 +37,15 @@ const FeedbackHistoryScreen = () => {
     negative: 0,
   });
 
-  // Modal states
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form data
   const [formData, setFormData] = useState({
-    client: '',
+    clientId: '',
+    campaignName: '',
     rating: 5,
     comment: '',
   });
@@ -53,84 +53,78 @@ const FeedbackHistoryScreen = () => {
   const fetchFeedback = useCallback(async () => {
     try {
       setError('');
-      const response = hasRole(['Admin', 'Manager']) 
+      const response = canManageAllFeedback
         ? await feedbackApi.getFeedback()
         : await feedbackApi.getMyFeedback();
-      
+
       const feedbackData = response || [];
       setFeedback(feedbackData);
-      setFilteredFeedback(feedbackData);
-      
-      // Calculate stats
+
       const total = feedbackData.length;
-      const positive = feedbackData.filter(f => f.sentiment?.toLowerCase() === 'positive').length;
-      const neutral = feedbackData.filter(f => f.sentiment?.toLowerCase() === 'neutral').length;
-      const negative = feedbackData.filter(f => f.sentiment?.toLowerCase() === 'negative').length;
-      
+      const positive = feedbackData.filter((item) => item.sentiment?.toLowerCase() === 'positive').length;
+      const neutral = feedbackData.filter((item) => item.sentiment?.toLowerCase() === 'neutral').length;
+      const negative = feedbackData.filter((item) => item.sentiment?.toLowerCase() === 'negative').length;
       setStats({ total, positive, neutral, negative });
-    } catch (error) {
-      console.log('Feedback error:', error);
-      setError(error.message || 'Failed to load feedback');
+    } catch (fetchError) {
+      console.log('Feedback error:', fetchError);
+      setError(fetchError.message || 'Failed to load feedback');
     }
-  }, [hasRole]);
+  }, [canManageAllFeedback]);
 
   const fetchClients = useCallback(async () => {
-    try {
-      if (hasRole(['Admin', 'Manager'])) {
-        const response = await clientApi.getClients();
-        setClients(response || []);
-      }
-    } catch (error) {
-      console.log('Clients error:', error);
+    if (!canManageAllFeedback) {
+      setClients([]);
+      return;
     }
-  }, [hasRole]);
+
+    try {
+      const response = await clientApi.getClients();
+      setClients(response || []);
+    } catch (fetchError) {
+      console.log('Client list error:', fetchError);
+      setError(fetchError.message || 'Failed to load clients');
+    }
+  }, [canManageAllFeedback]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchFeedback(), fetchClients()]);
     setLoading(false);
-  }, [fetchFeedback, fetchClients]);
+  }, [fetchClients, fetchFeedback]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([fetchFeedback(), fetchClients()]);
     setRefreshing(false);
-  }, [fetchFeedback, fetchClients]);
+  }, [fetchClients, fetchFeedback]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   useEffect(() => {
-    filterFeedback();
-  }, [feedback, searchText, sentimentFilter]);
-
-  const filterFeedback = () => {
     let filtered = [...feedback];
 
-    // Search filter
     if (searchText) {
-      filtered = filtered.filter(item =>
-        (item.comment && item.comment.toLowerCase().includes(searchText.toLowerCase())) ||
-        (item.clientName && item.clientName.toLowerCase().includes(searchText.toLowerCase())) ||
-        (item.client && typeof item.client === 'object' && 
-          item.client.name.toLowerCase().includes(searchText.toLowerCase()))
+      const normalizedSearch = searchText.toLowerCase();
+      filtered = filtered.filter((item) =>
+        (item.comment && item.comment.toLowerCase().includes(normalizedSearch)) ||
+        (item.campaignName && item.campaignName.toLowerCase().includes(normalizedSearch)) ||
+        (item.clientId?.name && item.clientId.name.toLowerCase().includes(normalizedSearch))
       );
     }
 
-    // Sentiment filter
     if (sentimentFilter !== 'all') {
-      filtered = filtered.filter(item => 
-        item.sentiment?.toLowerCase() === sentimentFilter
-      );
+      filtered = filtered.filter((item) => item.sentiment?.toLowerCase() === sentimentFilter);
     }
 
     setFilteredFeedback(filtered);
-  };
+  }, [feedback, searchText, sentimentFilter]);
 
   const resetForm = () => {
     setFormData({
-      client: '',
+      clientId: '',
+      campaignName: '',
       rating: 5,
       comment: '',
     });
@@ -145,7 +139,11 @@ const FeedbackHistoryScreen = () => {
   const openEditModal = (feedbackItem) => {
     setSelectedFeedback(feedbackItem);
     setFormData({
-      client: feedbackItem.client || '',
+      clientId:
+        typeof feedbackItem.clientId === 'object'
+          ? feedbackItem.clientId?._id || ''
+          : feedbackItem.clientId || '',
+      campaignName: feedbackItem.campaignName || '',
       rating: feedbackItem.rating || 5,
       comment: feedbackItem.comment || '',
     });
@@ -166,12 +164,20 @@ const FeedbackHistoryScreen = () => {
   };
 
   const validateForm = () => {
-    if (!formData.client.trim()) {
-      setError('Client is required');
+    if (canManageAllFeedback && !formData.clientId) {
+      setError('Please select a client');
+      return false;
+    }
+    if (!formData.campaignName.trim()) {
+      setError('Campaign name is required');
       return false;
     }
     if (!formData.comment.trim()) {
       setError('Comment is required');
+      return false;
+    }
+    if (formData.comment.trim().length < 10) {
+      setError('Comment must be at least 10 characters long');
       return false;
     }
     if (formData.rating < 1 || formData.rating > 5) {
@@ -181,6 +187,13 @@ const FeedbackHistoryScreen = () => {
     return true;
   };
 
+  const buildPayload = () => ({
+    clientId: canManageAllFeedback ? formData.clientId : undefined,
+    campaignName: formData.campaignName.trim(),
+    rating: formData.rating,
+    comment: formData.comment.trim(),
+  });
+
   const handleAddFeedback = async () => {
     if (!validateForm()) return;
 
@@ -188,14 +201,7 @@ const FeedbackHistoryScreen = () => {
     setError('');
 
     try {
-      const feedbackData = {
-        client: formData.client.trim(),
-        rating: formData.rating,
-        comment: formData.comment.trim(),
-      };
-
-      const result = await feedbackApi.createFeedback(feedbackData);
-
+      const result = await feedbackApi.createFeedback(buildPayload());
       if (result.success || result.data) {
         Alert.alert('Success', 'Feedback added successfully');
         closeModals();
@@ -203,28 +209,21 @@ const FeedbackHistoryScreen = () => {
       } else {
         setError(result.error || 'Failed to add feedback');
       }
-    } catch (error) {
-      setError(error.message || 'Failed to add feedback');
+    } catch (submitError) {
+      setError(submitError.message || 'Failed to add feedback');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleEditFeedback = async () => {
-    if (!validateForm()) return;
+    if (!validateForm() || !selectedFeedback) return;
 
     setSubmitting(true);
     setError('');
 
     try {
-      const feedbackData = {
-        client: formData.client.trim(),
-        rating: formData.rating,
-        comment: formData.comment.trim(),
-      };
-
-      const result = await feedbackApi.updateFeedback(selectedFeedback._id, feedbackData);
-
+      const result = await feedbackApi.updateFeedback(selectedFeedback._id, buildPayload());
       if (result.success || result.data) {
         Alert.alert('Success', 'Feedback updated successfully');
         closeModals();
@@ -232,8 +231,8 @@ const FeedbackHistoryScreen = () => {
       } else {
         setError(result.error || 'Failed to update feedback');
       }
-    } catch (error) {
-      setError(error.message || 'Failed to update feedback');
+    } catch (submitError) {
+      setError(submitError.message || 'Failed to update feedback');
     } finally {
       setSubmitting(false);
     }
@@ -242,7 +241,7 @@ const FeedbackHistoryScreen = () => {
   const handleDeleteFeedback = (feedbackItem) => {
     Alert.alert(
       'Delete Feedback',
-      'Are you sure you want to delete this feedback? This action cannot be undone.',
+      'Are you sure you want to delete this feedback?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -257,8 +256,8 @@ const FeedbackHistoryScreen = () => {
               } else {
                 Alert.alert('Error', result.error || 'Failed to delete feedback');
               }
-            } catch (error) {
-              Alert.alert('Error', error.message || 'Failed to delete feedback');
+            } catch (deleteError) {
+              Alert.alert('Error', deleteError.message || 'Failed to delete feedback');
             }
           },
         },
@@ -266,34 +265,52 @@ const FeedbackHistoryScreen = () => {
     );
   };
 
-  const getSentimentColor = (sentiment) => {
-    switch (sentiment?.toLowerCase()) {
-      case 'positive': return colors.success;
-      case 'negative': return colors.error;
-      case 'neutral': return colors.warning;
-      default: return colors.gray400;
-    }
-  };
-
   const renderStars = (rating, onPress) => {
     const stars = [];
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 5; i += 1) {
       stars.push(
         <TouchableOpacity
           key={i}
-          onPress={() => onPress && onPress(i)}
+          onPress={() => onPress?.(i)}
           style={styles.starButton}
         >
-          <Text style={[
-            styles.star,
-            i <= rating ? styles.filledStar : styles.emptyStar
-          ]}>
-            {i <= rating ? '⭐' : '☆'}
+          <Text style={[styles.star, i <= rating ? styles.filledStar : styles.emptyStar]}>
+            {i <= rating ? '*' : 'o'}
           </Text>
         </TouchableOpacity>
       );
     }
     return stars;
+  };
+
+  const renderClientSelector = () => {
+    if (!canManageAllFeedback) return null;
+
+    return (
+      <View style={styles.modalInput}>
+        <Text style={styles.inputLabel}>Client</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.clientSelector}
+        >
+          {clients.map((client) => {
+            const isSelected = formData.clientId === client._id;
+            return (
+              <TouchableOpacity
+                key={client._id}
+                style={[styles.clientChip, isSelected && styles.clientChipSelected]}
+                onPress={() => setFormData((prev) => ({ ...prev, clientId: client._id }))}
+              >
+                <Text style={[styles.clientChipText, isSelected && styles.clientChipTextSelected]}>
+                  {client.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
   };
 
   const renderAddEditModal = () => {
@@ -310,73 +327,52 @@ const FeedbackHistoryScreen = () => {
         <SafeAreaView style={commonStyles.safeArea}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {isEdit ? 'Edit Feedback' : 'Add New Feedback'}
-              </Text>
+              <Text style={styles.modalTitle}>{isEdit ? 'Edit Feedback' : 'Add Feedback'}</Text>
               <TouchableOpacity onPress={closeModals}>
-                <Text style={styles.modalClose}>×</Text>
+                <Text style={styles.modalClose}>X</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalContent}>
-              {error && (
+            <ScrollView style={styles.modalContent}>
+              {error ? (
                 <View style={styles.modalError}>
                   <Text style={styles.errorText}>{error}</Text>
                 </View>
-              )}
+              ) : null}
+
+              {renderClientSelector()}
 
               <Input
-                label="Client"
-                value={formData.client}
-                onChangeText={(text) => setFormData({ ...formData, client: text })}
-                placeholder="Enter client name"
+                label="Campaign Name"
+                value={formData.campaignName}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, campaignName: text }))}
+                placeholder="Enter campaign name"
                 style={styles.modalInput}
               />
 
               <View style={styles.modalInput}>
                 <Text style={styles.inputLabel}>Rating</Text>
                 <View style={styles.starsContainer}>
-                  {renderStars(formData.rating, (rating) => 
-                    setFormData({ ...formData, rating })
+                  {renderStars(formData.rating, (rating) =>
+                    setFormData((prev) => ({ ...prev, rating }))
                   )}
                 </View>
-                <Text style={styles.ratingText}>
-                  {formData.rating} out of 5
-                </Text>
+                <Text style={styles.ratingText}>{formData.rating} out of 5</Text>
               </View>
 
               <Input
                 label="Comment"
                 value={formData.comment}
-                onChangeText={(text) => setFormData({ ...formData, comment: text })}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, comment: text }))}
                 placeholder="Enter feedback comment"
                 multiline
                 numberOfLines={4}
                 style={styles.modalInput}
               />
-
-              <View style={styles.modalInput}>
-                <Text style={styles.inputLabel}>Sentiment Analysis</Text>
-                <View style={styles.sentimentInfo}>
-                  <Text style={styles.sentimentInfoText}>
-                    Sentiment will be automatically analyzed from your comment and rating
-                  </Text>
-                  <View style={styles.sentimentExamples}>
-                    <Text style={styles.sentimentExampleTitle}>Examples:</Text>
-                    <Text style={styles.sentimentExample}>• "Great service!" → Positive</Text>
-                    <Text style={styles.sentimentExample}>• "It was okay" → Neutral</Text>
-                    <Text style={styles.sentimentExample}>• "Terrible experience" → Negative</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
+            </ScrollView>
 
             <View style={styles.modalActions}>
-              <Button
-                title="Cancel"
-                onPress={closeModals}
-                style={styles.cancelButton}
-              />
+              <Button title="Cancel" onPress={closeModals} style={styles.cancelButton} />
               <Button
                 title={isEdit ? 'Update Feedback' : 'Add Feedback'}
                 onPress={isEdit ? handleEditFeedback : handleAddFeedback}
@@ -402,22 +398,17 @@ const FeedbackHistoryScreen = () => {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Feedback Details</Text>
             <TouchableOpacity onPress={closeModals}>
-              <Text style={styles.modalClose}>×</Text>
+              <Text style={styles.modalClose}>X</Text>
             </TouchableOpacity>
           </View>
 
-          {selectedFeedback && (
+          {selectedFeedback ? (
             <ScrollView style={styles.modalContent}>
-              <FeedbackCard
-                feedback={selectedFeedback}
-                showActions={false}
-              />
+              <FeedbackCard feedback={selectedFeedback} showActions={false} />
 
               <Card style={styles.detailsCard}>
                 <Text style={styles.detailsTitle}>Full Comment</Text>
-                <Text style={styles.fullComment}>
-                  {selectedFeedback.comment}
-                </Text>
+                <Text style={styles.fullComment}>{selectedFeedback.comment}</Text>
               </Card>
 
               <View style={styles.detailsActions}>
@@ -431,7 +422,7 @@ const FeedbackHistoryScreen = () => {
                 />
               </View>
             </ScrollView>
-          )}
+          ) : null}
         </View>
       </SafeAreaView>
     </Modal>
@@ -448,9 +439,9 @@ const FeedbackHistoryScreen = () => {
     <FeedbackCard
       feedback={item}
       onPress={openDetailsModal}
-      onEdit={hasRole(['Admin', 'Manager']) ? openEditModal : null}
-      onDelete={hasRole(['Admin', 'Manager']) ? handleDeleteFeedback : null}
-      showActions={hasRole(['Admin', 'Manager'])}
+      onEdit={openEditModal}
+      onDelete={handleDeleteFeedback}
+      showActions
     />
   );
 
@@ -461,38 +452,27 @@ const FeedbackHistoryScreen = () => {
   return (
     <SafeAreaView style={commonStyles.safeArea}>
       <View style={styles.container}>
-        {/* Header */}
         <Card style={styles.headerCard}>
           <Text style={styles.headerTitle}>Feedback History</Text>
-          <Text style={styles.headerSubtitle}>
-            View and manage client feedback
-          </Text>
-          {hasRole(['Admin', 'Manager']) && (
-            <Button
-              title="Add Feedback"
-              onPress={openAddModal}
-              style={styles.addButton}
-            />
-          )}
+          <Text style={styles.headerSubtitle}>View and manage client feedback</Text>
+          <Button title="Add Feedback" onPress={openAddModal} style={styles.addButton} />
         </Card>
 
-        {error && (
+        {error ? (
           <Card style={styles.errorCard}>
             <Text style={styles.errorText}>{error}</Text>
           </Card>
-        )}
+        ) : null}
 
-        {/* Search */}
         <Card style={styles.searchCard}>
           <Input
-            placeholder="Search by comment or client name..."
+            placeholder="Search by campaign, comment, or client..."
             value={searchText}
             onChangeText={setSearchText}
             style={styles.searchInput}
           />
         </Card>
 
-        {/* Sentiment Filter */}
         <Card style={styles.filterCard}>
           <FilterTabs
             options={sentimentOptions}
@@ -501,21 +481,18 @@ const FeedbackHistoryScreen = () => {
           />
         </Card>
 
-        {/* Feedback List */}
         <FlatList
           data={filteredFeedback}
           renderItem={renderFeedbackItem}
           keyExtractor={(item) => item._id}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <EmptyState
               title="No feedback found"
               message={
                 feedback.length === 0
-                  ? "No feedback has been submitted yet."
-                  : "No feedback matches your search criteria."
+                  ? 'No feedback has been submitted yet.'
+                  : 'No feedback matches your search criteria.'
               }
             />
           }
@@ -523,7 +500,6 @@ const FeedbackHistoryScreen = () => {
           showsVerticalScrollIndicator={false}
         />
 
-        {/* Modals */}
         {renderAddEditModal()}
         {renderDetailsModal()}
       </View>
@@ -593,7 +569,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: spacing.lg,
   },
-  // Modal styles
   modalContainer: {
     flex: 1,
     backgroundColor: colors.background,
@@ -612,7 +587,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   modalClose: {
-    fontSize: typography.fontSizes['2xl'],
+    fontSize: typography.fontSizes.xl,
     color: colors.gray400,
     padding: spacing.xs,
   },
@@ -637,6 +612,30 @@ const styles = StyleSheet.create({
     color: colors.white,
     marginBottom: spacing.sm,
   },
+  clientSelector: {
+    gap: spacing.sm,
+    paddingRight: spacing.md,
+  },
+  clientChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.navyLight,
+    borderWidth: 1,
+    borderColor: colors.gray700,
+  },
+  clientChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  clientChipText: {
+    color: colors.gray300,
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.medium,
+  },
+  clientChipTextSelected: {
+    color: colors.white,
+  },
   starsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -659,31 +658,6 @@ const styles = StyleSheet.create({
     color: colors.gray400,
     textAlign: 'center',
   },
-  sentimentInfo: {
-    backgroundColor: colors.navyLight,
-    borderRadius: spacing.md,
-    padding: spacing.md,
-  },
-  sentimentInfoText: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.gray300,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  sentimentExamples: {
-    gap: spacing.xs,
-  },
-  sentimentExampleTitle: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.white,
-    fontWeight: typography.fontWeights.semibold,
-    marginBottom: spacing.xs,
-  },
-  sentimentExample: {
-    fontSize: typography.fontSizes.xs,
-    color: colors.gray400,
-    fontStyle: 'italic',
-  },
   modalActions: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -694,7 +668,6 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: colors.gray700,
   },
-  // Details modal styles
   detailsCard: {
     backgroundColor: colors.navyLight,
     borderRadius: spacing.md,

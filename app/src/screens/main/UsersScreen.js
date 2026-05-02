@@ -21,6 +21,7 @@ const ROLES = ['Admin', 'Manager', 'Staff', 'Client'];
 
 const UsersScreen = () => {
   const [users, setUsers] = useState([]);
+  const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,12 +35,23 @@ const UsersScreen = () => {
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
+  const filteredUsers = users.filter((user) => {
+    const query = searchText.trim().toLowerCase();
+    if (!query) return true;
+
+    return (
+      user.name?.toLowerCase().includes(query) ||
+      user.email?.toLowerCase().includes(query) ||
+      user.role?.toLowerCase().includes(query)
+    );
+  });
+
   const fetchUsers = async () => {
     try {
       const response = await userApi.getUsers();
-      setUsers(response.data || []);
+      setUsers((response || []).filter((user) => user.isActive !== false));
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to load users');
+      Alert.alert('Error', error.message || 'Failed to load users');
     }
   };
 
@@ -106,11 +118,14 @@ const UsersScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await userApi.deleteUser(user._id);
+              const result = await userApi.deleteUser(user._id);
+              if (!(result.success || result.data)) {
+                throw new Error(result.error || 'Failed to delete user');
+              }
+              setUsers((currentUsers) => currentUsers.filter((currentUser) => currentUser._id !== user._id));
               Alert.alert('Success', 'User deleted successfully');
-              fetchUsers();
             } catch (error) {
-              Alert.alert('Error', error.response?.data?.message || 'Failed to delete user');
+              Alert.alert('Error', error.message || 'Failed to delete user');
             }
           },
         },
@@ -135,7 +150,7 @@ const UsersScreen = () => {
       setModalVisible(false);
       fetchUsers();
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to save user');
+      Alert.alert('Error', error.message || 'Failed to save user');
     } finally {
       setSubmitting(false);
     }
@@ -188,20 +203,26 @@ const UsersScreen = () => {
     <SafeAreaView style={commonStyles.safeArea}>
       <View style={commonStyles.content}>
         <View style={styles.header}>
-          <Text style={commonStyles.title}>User Management</Text>
+            <Text style={commonStyles.title}>User Management</Text>
           <Button title="+ Add User" onPress={handleAddUser} size="sm" />
         </View>
 
-        {users.length === 0 ? (
+        <Input
+          placeholder="Search by name, email, or role"
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+
+        {filteredUsers.length === 0 ? (
           <EmptyState
-            title="No Users"
-            message="No users found in the system."
+            title={users.length === 0 ? 'No Users' : 'No Matches'}
+            message={users.length === 0 ? 'No users found in the system.' : 'Try a different search term.'}
             actionLabel="Add User"
             onAction={handleAddUser}
           />
         ) : (
           <FlatList
-            data={users}
+            data={filteredUsers}
             renderItem={renderUser}
             keyExtractor={(item) => item._id}
             showsVerticalScrollIndicator={false}
@@ -234,6 +255,7 @@ const UsersScreen = () => {
                 value={formData.name}
                 onChangeText={(text) => setFormData({ ...formData, name: text })}
                 error={formErrors.name}
+                labelStyle={styles.modalInputLabel}
               />
               <Input
                 label="Email"
@@ -242,6 +264,7 @@ const UsersScreen = () => {
                 error={formErrors.email}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                labelStyle={styles.modalInputLabel}
               />
               <Input
                 label={editingUser ? 'Password (leave blank to keep unchanged)' : 'Password'}
@@ -249,6 +272,7 @@ const UsersScreen = () => {
                 onChangeText={(text) => setFormData({ ...formData, password: text })}
                 error={formErrors.password}
                 secureTextEntry
+                labelStyle={styles.modalInputLabel}
               />
               <Text style={styles.label}>Role</Text>
               <View style={styles.roleContainer}>
@@ -313,11 +337,11 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: typography.fontSizes.lg,
     fontWeight: typography.fontWeights.bold,
-    color: colors.white,
+    color: colors.textPrimary,
   },
   userEmail: {
     fontSize: typography.fontSizes.sm,
-    color: colors.gray400,
+    color: colors.textSecondary,
   },
   roleBadge: {
     paddingHorizontal: spacing.sm,
@@ -355,14 +379,17 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: typography.fontSizes.xl,
     fontWeight: typography.fontWeights.bold,
-    color: colors.white,
+    color: colors.textPrimary,
     marginBottom: spacing.lg,
   },
   label: {
     fontSize: typography.fontSizes.sm,
     fontWeight: typography.fontWeights.medium,
-    color: colors.gray300,
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
+  },
+  modalInputLabel: {
+    color: colors.textPrimary,
   },
   roleContainer: {
     flexDirection: 'row',

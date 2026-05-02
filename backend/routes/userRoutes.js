@@ -10,17 +10,16 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 
-// All user routes require Admin role
+// All user routes require authentication
 router.use(protect);
-router.use(authorize('Admin'));
 
 router.route('/')
-  .get(getUsers)
-  .post(createUser);
+  .get(authorize('Admin', 'Manager'), getUsers)
+  .post(authorize('Admin'), createUser);
 
 router.route('/:id')
-  .get(getUserById)
-  .put(updateUser)
-  .delete(deleteUser);
+  .get(authorize('Admin', 'Manager'), getUserById)
+  .put(authorize('Admin'), updateUser)
+  .delete(authorize('Admin'), deleteUser);
 
 module.exports = router;

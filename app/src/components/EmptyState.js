@@ -44,14 +44,12 @@ const styles = StyleSheet.create({
     color: colors.textWhite,
     marginBottom: spacing.sm,
     textAlign: 'center',
-    lineHeight: typography.lineHeight.tight,
   },
   message: {
     fontSize: typography.fontSizes.md,
     color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
-    lineHeight: typography.lineHeight.normal,
   },
   button: {
     minWidth: 150,

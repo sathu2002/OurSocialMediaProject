@@ -1,5 +1,7 @@
 import apiClient from './axiosConfig';
 
+const successResponse = (data) => ({ success: true, data });
+
 /**
  * Payment Management API Service
  * Admin/Manager access for management with proper error handling
@@ -66,7 +68,7 @@ export const paymentApi = {
   createPayment: async (paymentData) => {
     try {
       // Validate input
-      const requiredFields = ['clientId', 'amount', 'package', 'method', 'status'];
+      const requiredFields = ['clientId', 'amount', 'method', 'status'];
       const missingFields = requiredFields.filter(field => !paymentData[field]);
       
       if (missingFields.length > 0) {
@@ -78,23 +80,23 @@ export const paymentApi = {
         throw new Error('Amount must be a positive number');
       }
 
-      const validMethods = ['Cash', 'Card', 'Bank Transfer', 'Check', 'Online'];
+      const validMethods = ['Cash', 'Bank Transfer', 'Cheque', 'Online'];
       if (!validMethods.includes(paymentData.method)) {
         throw new Error(`Invalid payment method. Must be one of: ${validMethods.join(', ')}`);
       }
 
-      const validStatuses = ['Paid', 'Pending', 'Overdue', 'Cancelled'];
+      const validStatuses = ['Paid', 'Pending', 'Overdue'];
       if (!validStatuses.includes(paymentData.status)) {
         throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
       }
 
       const validPackages = ['Silver', 'Gold', 'Platinum', 'Diamond'];
-      if (!validPackages.includes(paymentData.package)) {
+      if (paymentData.package && !validPackages.includes(paymentData.package)) {
         throw new Error(`Invalid package. Must be one of: ${validPackages.join(', ')}`);
       }
 
       const response = await apiClient.post('/payments', paymentData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -128,7 +130,7 @@ export const paymentApi = {
 
       // Validate method if provided
       if (paymentData.method) {
-        const validMethods = ['Cash', 'Card', 'Bank Transfer', 'Check', 'Online'];
+        const validMethods = ['Cash', 'Bank Transfer', 'Cheque', 'Online'];
         if (!validMethods.includes(paymentData.method)) {
           throw new Error(`Invalid payment method. Must be one of: ${validMethods.join(', ')}`);
         }
@@ -136,7 +138,7 @@ export const paymentApi = {
 
       // Validate status if provided
       if (paymentData.status) {
-        const validStatuses = ['Paid', 'Pending', 'Overdue', 'Cancelled'];
+        const validStatuses = ['Paid', 'Pending', 'Overdue'];
         if (!validStatuses.includes(paymentData.status)) {
           throw new Error(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
         }
@@ -151,7 +153,7 @@ export const paymentApi = {
       }
 
       const response = await apiClient.put(`/payments/${id}`, paymentData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -172,7 +174,7 @@ export const paymentApi = {
       }
       
       const response = await apiClient.delete(`/payments/${id}`);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 

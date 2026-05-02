@@ -1,13 +1,15 @@
 import apiClient from './axiosConfig';
 import { getCombinedSentiment, validateSentimentResult } from '../utils/sentimentAnalysis';
 
+const successResponse = (data) => ({ success: true, data });
+
 /**
  * Feedback API Service
- * Role-based: Admin/Manager (view all), Client (create/view own) with proper error handling
+ * Role-based: Admin/Manager/Staff (manage all), Client (manage own) with proper error handling
  */
 export const feedbackApi = {
   /**
-   * Get all feedback (Admin/Manager)
+   * Get all feedback available to the current user
    * @returns {Promise} - Array of feedback with sentiment analysis
    */
   getFeedback: async () => {
@@ -39,14 +41,14 @@ export const feedbackApi = {
   },
   
   /**
-   * Create new feedback (Client only)
-   * @param {Object} feedbackData - { campaignName, rating, comment }
+   * Create new feedback
+   * @param {Object} feedbackData - { campaignName, rating, comment, clientId? }
    * @returns {Promise} - Created feedback with AI sentiment
    */
   createFeedback: async (feedbackData) => {
     try {
       // Validate input
-      const requiredFields = ['client', 'rating', 'comment'];
+      const requiredFields = ['campaignName', 'rating'];
       const missingFields = requiredFields.filter(field => !feedbackData[field]);
       
       if (missingFields.length > 0) {
@@ -60,11 +62,11 @@ export const feedbackApi = {
       }
 
       // Validate comment length
-      if (feedbackData.comment.length < 10) {
+      if (feedbackData.comment && feedbackData.comment.length < 10) {
         throw new Error('Comment must be at least 10 characters long');
       }
 
-      if (feedbackData.comment.length > 1000) {
+      if (feedbackData.comment && feedbackData.comment.length > 1000) {
         throw new Error('Comment must be less than 1000 characters');
       }
 
@@ -83,16 +85,12 @@ export const feedbackApi = {
 
       // Add sentiment to feedback data
       const enrichedFeedbackData = {
-        ...feedbackData,
+        clientId: feedbackData.clientId,
+        campaignName: feedbackData.campaignName?.trim(),
+        comment: feedbackData.comment?.trim() || '',
         rating: rating,
         sentiment: sentimentAnalysis.sentiment,
-        sentimentConfidence: sentimentAnalysis.confidence,
-        sentimentAnalysis: {
-          textSentiment: sentimentAnalysis.textSentiment,
-          ratingSentiment: sentimentAnalysis.ratingSentiment,
-          combinedScores: sentimentAnalysis.combinedScores,
-          processedAt: new Date().toISOString()
-        }
+        aiSuggestion: feedbackData.aiSuggestion,
       };
 
       console.log('Creating feedback with automatic sentiment:', {
@@ -103,7 +101,7 @@ export const feedbackApi = {
       });
 
       const response = await apiClient.post('/feedback', enrichedFeedbackData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -113,7 +111,7 @@ export const feedbackApi = {
   },
   
   /**
-   * Update feedback (Client only, own feedback)
+   * Update feedback
    * @param {string} id - Feedback ID
    * @param {Object} feedbackData - Updated fields
    * @returns {Promise} - Updated feedback
@@ -166,16 +164,17 @@ export const feedbackApi = {
 
       // Add sentiment to feedback data if analysis was performed
       const enrichedFeedbackData = sentimentAnalysis ? {
-        ...feedbackData,
+        clientId: feedbackData.clientId,
+        campaignName: feedbackData.campaignName?.trim(),
+        comment: feedbackData.comment?.trim() || '',
+        rating: feedbackData.rating,
         sentiment: sentimentAnalysis.sentiment,
-        sentimentConfidence: sentimentAnalysis.confidence,
-        sentimentAnalysis: {
-          textSentiment: sentimentAnalysis.textSentiment,
-          ratingSentiment: sentimentAnalysis.ratingSentiment,
-          combinedScores: sentimentAnalysis.combinedScores,
-          processedAt: new Date().toISOString()
-        }
-      } : feedbackData;
+      } : {
+        ...feedbackData,
+        clientId: feedbackData.clientId,
+        campaignName: feedbackData.campaignName?.trim(),
+        comment: feedbackData.comment?.trim(),
+      };
 
       if (sentimentAnalysis) {
         console.log('Updating feedback with automatic sentiment:', {
@@ -188,7 +187,7 @@ export const feedbackApi = {
       }
 
       const response = await apiClient.put(`/feedback/${id}`, enrichedFeedbackData);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 
@@ -209,7 +208,7 @@ export const feedbackApi = {
       }
       
       const response = await apiClient.delete(`/feedback/${id}`);
-      return response.data;
+      return successResponse(response.data);
     } catch (error) {
       const message = error.response?.data?.message || 
                     error.message || 

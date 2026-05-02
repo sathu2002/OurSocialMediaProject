@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { taskApi } from '../../api';
 import { Card, Loading, EmptyState, Button } from '../../components';
-import { colors, typography, spacing, commonStyles } from '../../styles/theme';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../../styles/theme';
 
 const TaskCalendarScreen = () => {
   const { user, hasRole } = useAuth();
@@ -79,7 +79,7 @@ const TaskCalendarScreen = () => {
   };
 
   useEffect(() => {
-    fetchTasks();
+    loadData();
   }, [selectedMonth]);
 
   const getMonthName = (date) => {
@@ -91,14 +91,12 @@ const TaskCalendarScreen = () => {
       case 'Completed': return colors.success;
       case 'In Progress': return colors.info;
       case 'Pending': return colors.warning;
-      case 'Cancelled': return colors.error;
       default: return colors.gray400;
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'Urgent': return colors.error;
       case 'High': return colors.warning;
       case 'Medium': return colors.info;
       case 'Low': return colors.gray400;
@@ -185,7 +183,7 @@ const TaskCalendarScreen = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const dayTasks = getTasksForDay(day);
       const hasTask = dayTasks.length > 0;
-      const hasUrgentTask = dayTasks.some(task => task.priority === 'Urgent');
+      const hasHighTask = dayTasks.some(task => task.priority === 'High');
 
       days.push(
         <TouchableOpacity
@@ -193,7 +191,7 @@ const TaskCalendarScreen = () => {
           style={[
             styles.dayCell,
             hasTask && styles.dayWithTask,
-            hasUrgentTask && styles.dayWithUrgentTask
+            hasHighTask && styles.dayWithUrgentTask
           ]}
           onPress={() => handleDatePress(day)}
         >
@@ -292,7 +290,7 @@ const TaskCalendarScreen = () => {
             style={styles.monthButton}
             onPress={() => changeMonth('prev')}
           >
-            <Text style={styles.monthButtonText}>←</Text>
+            <Text style={styles.monthButtonText}>{'<'}</Text>
           </TouchableOpacity>
           <Text style={styles.monthText}>
             {getMonthName(selectedMonth)}
@@ -301,7 +299,7 @@ const TaskCalendarScreen = () => {
             style={styles.monthButton}
             onPress={() => changeMonth('next')}
           >
-            <Text style={styles.monthButtonText}>→</Text>
+            <Text style={styles.monthButtonText}>{'>'}</Text>
           </TouchableOpacity>
         </Card>
 
@@ -338,7 +336,7 @@ const TaskCalendarScreen = () => {
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
-              <Text style={styles.legendText}>Urgent</Text>
+              <Text style={styles.legendText}>High priority</Text>
             </View>
           </View>
         </Card>
@@ -357,7 +355,7 @@ const TaskCalendarScreen = () => {
                   Tasks for {selectedMonth.getMonth() + 1}/{selectedDate}
                 </Text>
                 <TouchableOpacity onPress={closeDetailsModal}>
-                  <Text style={styles.modalClose}>×</Text>
+                  <Text style={styles.modalClose}>X</Text>
                 </TouchableOpacity>
               </View>
 
@@ -442,6 +440,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
     marginBottom: spacing.md,
+    backgroundColor: colors.navyLight,
+    borderColor: colors.gray700,
   },
   monthButton: {
     padding: spacing.sm,
@@ -470,6 +470,8 @@ const styles = StyleSheet.create({
   },
   calendarCard: {
     marginBottom: spacing.md,
+    backgroundColor: colors.navyLight,
+    borderColor: colors.gray700,
   },
   cardTitle: {
     fontSize: typography.fontSizes.lg,
@@ -479,6 +481,10 @@ const styles = StyleSheet.create({
   },
   calendar: {
     padding: spacing.md,
+    backgroundColor: colors.navy,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.12)',
   },
   calendarHeader: {
     flexDirection: 'row',
@@ -505,14 +511,14 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: borderRadius.sm,
-    marginVertical: 1,
+    borderRadius: borderRadius.md,
+    marginVertical: 2,
   },
   dayWithTask: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    backgroundColor: 'rgba(59, 130, 246, 0.24)',
   },
   dayWithUrgentTask: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: 'rgba(239, 68, 68, 0.22)',
   },
   dayText: {
     fontSize: typography.fontSizes.sm,
@@ -528,11 +534,13 @@ const styles = StyleSheet.create({
   },
   taskListCard: {
     marginBottom: spacing.md,
+    backgroundColor: colors.navyLight,
+    borderColor: colors.gray700,
   },
   taskItem: {
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.gray700,
+    borderBottomColor: 'rgba(148, 163, 184, 0.14)',
   },
   taskHeader: {
     flexDirection: 'row',
@@ -554,10 +562,20 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: typography.fontSizes.xs,
     fontWeight: typography.fontWeights.semibold,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
   },
   priorityText: {
     fontSize: typography.fontSizes.xs,
     fontWeight: typography.fontWeights.semibold,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
   },
   taskDescription: {
     fontSize: typography.fontSizes.sm,
@@ -575,6 +593,8 @@ const styles = StyleSheet.create({
   },
   legendCard: {
     marginBottom: spacing.md,
+    backgroundColor: colors.navyLight,
+    borderColor: colors.gray700,
   },
   legendGrid: {
     flexDirection: 'row',
@@ -615,7 +635,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   modalClose: {
-    fontSize: typography.fontSizes['2xl'],
+    fontSize: typography.fontSizes.xl,
     color: colors.gray400,
     padding: spacing.xs,
   },
@@ -635,9 +655,8 @@ const styles = StyleSheet.create({
   },
   taskDetailCard: {
     backgroundColor: colors.navyLight,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
     marginBottom: spacing.md,
+    borderColor: colors.gray700,
   },
   taskDetailHeader: {
     flexDirection: 'row',
