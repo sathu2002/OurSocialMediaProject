@@ -5,7 +5,7 @@ import axios from 'axios';
 // so the backend knows we are logged in!
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: process.env.EXPO_PUBLIC_API_URL,
 });
 
 // Request Interceptor: Attach Token

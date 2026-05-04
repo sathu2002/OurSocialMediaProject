@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ITP Mobile App",
+    "name": "SpotOn Mobile",
     "slug": "itp-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -35,6 +35,11 @@
           "faceIDPermission": "Allow $(PRODUCT_NAME) to access your Face ID biometric data."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b3e632c9-c1a1-440c-b55d-092c02f2865c"
+      }
+    }
   }
 }
