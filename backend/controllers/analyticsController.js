@@ -147,8 +147,9 @@ module.exports = {
   getAnalytics,
   getAnalyticsSummary,
   getClientAnalytics,
-  getMonthlyAnalytics,
+  getMonthlyAnalytics,//specifically for monthly report
+
   createAnalytics,
-  updateAnalytics,
+  updateAnalytics,//specifically for updating existing records
   deleteAnalytics,
 };
