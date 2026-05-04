@@ -1,20 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-
-const getDefaultApiUrl = () => {
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api';
-  }
-
-  return 'http://localhost:5000/api';
-};
-
-// Expo only exposes EXPO_PUBLIC_* env vars to the client bundle.
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  process.env.API_URL ||
-  getDefaultApiUrl();
+import API_URL from './baseUrl';
 
 // Create axios instance
 const apiClient = axios.create({
